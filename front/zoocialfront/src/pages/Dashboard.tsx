@@ -22,13 +22,11 @@ export const Dashboard = () => {
             try {
                 const [userRes, petsRes, adopRes, valRes] = await Promise.all([
                     api.get('/usuarios'),
-                    api.get('/animalito'), // Assuming the resource is animalito based on API routes
+                    api.get('/animalito'), 
                     api.get('/procesos-adopcion'),
-                    api.get('/validations') // The newly created admin endpoint
+                    api.get('/validations') 
                 ]);
                 
-                // Filter adoptions and validations by pending status if needed, 
-                // or just show total counts as in the design.
                 const pendingValidations = valRes.data.filter((v: any) => v.estado === 'pendiente');
 
                 setStats({

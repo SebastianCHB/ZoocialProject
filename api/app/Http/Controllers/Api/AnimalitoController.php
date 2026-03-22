@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Animalito; 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
 
 class AnimalitoController extends Controller
 {
@@ -48,9 +49,10 @@ class AnimalitoController extends Controller
             $path = $request->file('image')->store('pets', 'public');
             \App\Models\Foto::create([
                 'id_animalito' => $pet->id_animalito,
-                'cantidad' => 1,
-                'tipo' => 'principal',
-                'archivo' => 'storage/' . $path
+                'cantidad'     => 1,
+                'tipo'         => 'principal',
+                // url
+                'archivo'      => Storage::disk('public')->url($path)
             ]);
         }
 

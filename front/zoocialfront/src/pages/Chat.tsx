@@ -37,7 +37,7 @@ export const Chat = () => {
         }
     }, [view]);
 
-    // Handle initial auth load if necessary
+    // Handle auth load if necessary
     useEffect(() => {
         if (!me) return;
         loadConversations();

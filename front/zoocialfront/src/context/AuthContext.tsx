@@ -2,7 +2,6 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import api from '../api/axios';
 
-// Interfaces for our User structure based on Laravel Models
 export interface User {
     id_usuario: number;
     nombre_completo: string;

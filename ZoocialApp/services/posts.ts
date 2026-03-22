@@ -23,19 +23,19 @@ export type Post = {
 };
 
 export const postService = {
-  /** Get all posts for the feed */
+  // feed
   getFeed: async (): Promise<Post[]> => {
     const res = await api.get('/posts');
     return res.data;
   },
 
-  /** Get posts belonging to the authenticated user */
+  // mine
   getMyPosts: async (): Promise<Post[]> => {
     const res = await api.get('/posts/user');
     return res.data;
   },
 
-  /** Create a new post, optionally with an image file */
+  // create
   create: async (content: string, imageUri?: string): Promise<Post> => {
     const form = new FormData();
     form.append('content', content);
@@ -60,24 +60,24 @@ export const postService = {
     return res.data;
   },
 
-  /** Delete a post by ID */
+  // delete
   delete: async (id: number): Promise<void> => {
     await api.delete(`/posts/${id}`);
   },
 
-  /** Toggle like on a post */
+  // like
   toggleLike: async (id: number): Promise<{ likes: number; likedByUser: boolean }> => {
     const res = await api.post(`/posts/${id}/like`);
     return { likes: res.data.likes, likedByUser: res.data.likedByUser };
   },
 
-  /** Add a comment to a post */
+  // comment
   addComment: async (postId: number, content: string): Promise<Comment> => {
     const res = await api.post(`/posts/${postId}/comments`, { content });
     return res.data;
   },
 
-  /** Delete a comment */
+  // destroy
   deleteComment: async (commentId: number): Promise<void> => {
     await api.delete(`/comments/${commentId}`);
   },

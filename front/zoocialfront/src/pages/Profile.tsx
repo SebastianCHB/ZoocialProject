@@ -5,12 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { Settings, LogOut, Camera, UserSquare, CreditCard, ChevronRight, X, Image as ImageIcon, Trash2, Heart, MessageCircle } from 'lucide-react';
 import api from '../api/axios';
 
+// initials
 function getInitials(name: string) { return name ? name.slice(0, 2).toUpperCase() : 'U'; }
-function getRolColor(rol: string) {
-    if (rol === 'veterinario') return '#2a9d8f';
-    if (rol === 'rescatista') return '#f69622';
-    return '#0c5cb3';
-}
 
 export const Profile = () => {
     const { user, login, logout } = useAuth();
@@ -95,11 +91,15 @@ export const Profile = () => {
         setShowEditModal(true);
     };
 
+    // resolver
     const getFullImageUrl = (url: string) => {
         if (!url) return '';
+        // absolute
         if (url.startsWith('http')) return url;
-        const base = window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'http://192.168.1.40:8000';
-        return `${base}/${url.startsWith('/') ? url.slice(1) : url.startsWith('storage') ? url : 'storage/' + url}`;
+        // normalize
+        const path = url.startsWith('/') ? url.slice(1) : url.startsWith('storage') ? url : 'storage/' + url;
+        // relative
+        return `/${path}`;
     };
 
     const totalLikes = myPosts.reduce((acc, p) => acc + (p.likes || 0), 0);
@@ -130,7 +130,7 @@ export const Profile = () => {
                                         <img src={avatarPreview} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (
                                         <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#b3b3b3' }}>
-                                            {getInitials(user?.nombre_completo)}
+                                            {getInitials(user?.nombre_completo ?? '')}
                                         </div>
                                     )}
                                 </div>

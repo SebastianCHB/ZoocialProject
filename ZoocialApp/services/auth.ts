@@ -27,10 +27,8 @@ export const authService = {
   },
 
   async register(data: { correo_e: string; password: string; nombre_completo: string; rol?: string; edad?: number }): Promise<User> {
-    // Note: Adjusting slightly according to the API controller expectations
     const response = await api.post<User>('/usuarios', {
       ...data,
-      // Default to "normal" if role is not passed yet
       rol: data.rol || 'normal'
     });
     return response.data;

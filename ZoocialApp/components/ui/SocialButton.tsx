@@ -22,7 +22,6 @@ export function SocialButton({ provider, onPress, style }: SocialButtonProps) {
       onPress={onPress}
       activeOpacity={0.8}
     >
-      {/* Placeholders for actual icons */}
       <Text style={[styles.iconText, !isGoogle && styles.textWhite]}>
          {isGoogle ? 'G' : 'f'}
       </Text>
@@ -41,7 +40,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    flex: 1, // Useful for having them side-by-side
+    flex: 1, 
     marginHorizontal: 4,
   },
   buttonGoogle: {
@@ -49,14 +48,14 @@ const styles = StyleSheet.create({
     borderColor: '#c9ccd1',
   },
   buttonFacebook: {
-    backgroundColor: '#1877f2', // Facebook Blue
+    backgroundColor: '#1877f2', // Facebook
     borderColor: '#1877f2',
   },
   iconText: {
     fontSize: 20,
     fontWeight: 'bold',
     marginRight: 10,
-    color: '#ea4335', // Google Red proxy
+    color: '#ea4335', // Google Red
   },
   text: {
     fontSize: 15,

@@ -62,7 +62,6 @@ export default function LoginScreen() {
       router.replace('/(tabs)');
     } catch (error: any) {
       console.log('Login error', error?.response?.data || error.message);
-      // In a real app we'd parse the Laravel validation exceptions specifically
       Alert.alert('Error', error?.response?.data?.message || 'Error al iniciar sesión. Revisa tus credenciales.');
     } finally {
       setIsLoading(false);
@@ -151,21 +150,21 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f69622', // Orange top part
+    backgroundColor: '#f69622', 
   },
   scrollContent: {
     flexGrow: 1,
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
-    marginTop: 180, // Space for the orange header background
+    marginTop: 180, 
     paddingHorizontal: 24,
     paddingTop: 30,
     paddingBottom: 40,
   },
   header: {
     position: 'absolute',
-    top: -140, // Pull it up into the orange zone
+    top: -140,
     alignSelf: 'center',
     alignItems: 'center',
   },
@@ -225,7 +224,7 @@ const styles = StyleSheet.create({
      fontSize: 15,
   },
   linkText: {
-     color: '#f69622', // Orange text
+     color: '#f69622',
      fontSize: 15,
      fontWeight: 'bold',
   }

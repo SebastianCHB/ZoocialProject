@@ -24,7 +24,7 @@ export const Register = () => {
                 password
             });
 
-            // On success, redirect to login
+            // redirect to login
             navigate('/login');
             
         } catch (err: any) {
@@ -120,7 +120,6 @@ export const Register = () => {
 
             <div className="auth-sidebar" style={{ display: 'none' }}>
             </div>
-            {/* Show carousel only on desktop */}
             <style>{`
                 @media (min-width: 1024px) {
                     .auth-sidebar.desktop-only {

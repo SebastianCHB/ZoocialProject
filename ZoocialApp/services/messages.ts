@@ -1,5 +1,6 @@
 import api from './api';
 
+// types
 export type Conversation = {
   partner: {
     id_usuario: number;
@@ -11,6 +12,7 @@ export type Conversation = {
   unread_count: number;
 };
 
+// types
 export type Message = {
   id: number;
   sender_id: number;
@@ -27,28 +29,20 @@ export type Message = {
 };
 
 export const messagesService = {
-  /**
-   * Get list of all conversations for the authenticated user.
-   */
+
+  // conversations
   async getConversations(): Promise<Conversation[]> {
     const response = await api.get<Conversation[]>('/messages/conversations');
     return response.data;
   },
 
-  /**
-   * Get all messages between the authenticated user and a partner.
-   * @param partnerId - id_usuario of the other person in the conversation
-   */
+  // thread
   async getConversation(partnerId: number): Promise<Message[]> {
     const response = await api.get<Message[]>(`/messages/thread/${partnerId}`);
     return response.data;
   },
 
-  /**
-   * Send a new message.
-   * @param receiverId - id_usuario of the recipient
-   * @param message - text content
-   */
+  // send
   async sendMessage(receiverId: number, message: string): Promise<Message> {
     const response = await api.post<Message>('/messages/send', {
       to_usuario: receiverId,

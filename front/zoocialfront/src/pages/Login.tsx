@@ -31,8 +31,6 @@ export const Login = () => {
             if (response.data.access_token) {
                 login(response.data.access_token, response.data.user);
                 
-                // Route conditionally based on Onboarding completion
-                // The new user default name is 'Nuevo Usuario'
                 if (response.data.user.nombre_completo === 'Nuevo Usuario') {
                     navigate('/onboarding');
                 } else if (response.data.user.rol === 'admin') {
@@ -138,7 +136,6 @@ export const Login = () => {
 
             <div className="auth-sidebar" style={{ display: 'none' }}>
             </div>
-            {/* Show carousel only on desktop */}
             <style>{`
                 @media (min-width: 1024px) {
                     .auth-sidebar.desktop-only {

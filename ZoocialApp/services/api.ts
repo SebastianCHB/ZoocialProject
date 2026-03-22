@@ -1,11 +1,14 @@
 import axios from 'axios';
+import Constants from 'expo-constants';
 import { storage } from '../utils/storage';
 
-// We'll point this to the typical Android emulator localhost IP for Laravel, or a network IP.
-// 10.0.2.2 is used for Android emulator to access the host machine's localhost.
-// Consider using your actual local IP (e.g., 192.168.1.X) if testing on a physical device via Expo Go.
-export const API_URL = 'http://192.168.1.40:8000/api'; 
+// endpoint — app.config.js provides the real value at runtime
+export const API_URL: string =
+  (Constants.expoConfig?.extra?.apiUrl as string | undefined) ||
+  process.env.EXPO_PUBLIC_API_URL ||
+  'http://localhost:8000/api';
 
+// instance
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -14,6 +17,7 @@ const api = axios.create({
   },
 });
 
+// interceptor
 api.interceptors.request.use(
   async (config) => {
     const token = await storage.getItem('auth_token');

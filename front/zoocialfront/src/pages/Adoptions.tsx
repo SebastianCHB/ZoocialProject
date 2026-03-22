@@ -113,14 +113,18 @@ export const Adoptions = () => {
         }, 2000);
     };
 
-    // Safe filtering checking species
+    // filter
     const filteredPets = pets.filter(p => activeFilter === 'Todos' || (p.especie && activeFilter.toLowerCase() === p.especie.toLowerCase()));
 
+    // resolver
     const getFullImageUrl = (url: string) => {
         if (!url) return '';
+        // absolute
         if (url.startsWith('http')) return url;
-        const base = window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'http://192.168.1.40:8000';
-        return `${base}/${url.startsWith('/') ? url.slice(1) : url.startsWith('storage') ? url : 'storage/' + url}`;
+        // normalize
+        const path = url.startsWith('/') ? url.slice(1) : url.startsWith('storage') ? url : 'storage/' + url;
+        // relative
+        return `/${path}`;
     };
 
     return (

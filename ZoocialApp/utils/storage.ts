@@ -1,14 +1,8 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
-/**
- * Universal storage utility that handles SecureStore for native platforms
- * and localStorage for the web.
- */
 export const storage = {
-  /**
-   * Set a value in storage
-   */
+
   async setItem(key: string, value: string): Promise<void> {
     if (Platform.OS === 'web') {
       try {

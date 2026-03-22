@@ -1,27 +1,34 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig, loadEnv } from 'vite';
+import react from '@vitejs/plugin-react';
 
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        secure: false,
-        headers: {
-          Accept: 'application/json',
-        }
+// config
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  // backend
+  const backend = env.VITE_BACKEND_URL ?? 'http://localhost:8000';
+
+  return {
+    plugins: [react()],
+    server: {
+      proxy: {
+        // api
+        '/api': {
+          target: backend,
+          changeOrigin: true,
+          secure: false,
+          headers: { Accept: 'application/json' },
+        },
+        // sanctum
+        '/sanctum': {
+          target: backend,
+          changeOrigin: true,
+        },
+        // storage
+        '/storage': {
+          target: backend,
+          changeOrigin: true,
+        },
       },
-      '/sanctum': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      },
-      '/storage': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      }
-    }
-  }
-})
+    },
+  };
+});

@@ -9,6 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/auth';
 import { postService, Post } from '@/services/posts';
+import { getFullImageUrl } from '@/utils/imageUtils';
 
 export default function ProfileScreen() {
   const { user, signOut, updateUser } = useAuth();
@@ -185,8 +186,9 @@ export default function ProfileScreen() {
                 <View key={post.id} style={styles.postItem}>
                   <Text style={styles.postContent} numberOfLines={2}>{post.content}</Text>
                   {post.image_url ? (
-                    <TouchableOpacity onPress={() => setViewerImage(post.image_url!)}>
-                      <Image source={{ uri: post.image_url }} style={styles.postThumb} resizeMode="cover" />
+                    <TouchableOpacity onPress={() => setViewerImage(getFullImageUrl(post.image_url) ?? null)}>
+                      {/* thumb */}
+                      <Image source={{ uri: getFullImageUrl(post.image_url) }} style={styles.postThumb} resizeMode="cover" />
                     </TouchableOpacity>
                   ) : null}
                   <View style={styles.postStats}>

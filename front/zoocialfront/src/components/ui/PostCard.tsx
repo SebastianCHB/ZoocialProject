@@ -5,13 +5,15 @@ import api from '../../api/axios';
 
 function getFullImageUrl(url: string | undefined | null): string | undefined {
     if (!url || url === 'null' || url === 'undefined') return undefined;
+    // absolute
     if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('file:')) return url;
+    // normalize
     let path = url.startsWith('/') ? url.slice(1) : url;
     if (!path.startsWith('storage/')) {
         path = 'storage/' + path;
     }
-    const backendUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'http://192.168.1.40:8000';
-    return `${backendUrl}/${path}`;
+    // relative — proxied by Vite
+    return `/${path}`;
 }
 
 function getAvatarColor(name: string) {

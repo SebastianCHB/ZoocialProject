@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Post;
 use App\Models\PostLike;
+use Illuminate\Support\Facades\Storage;
 
 class PostController extends Controller
 {
@@ -32,8 +33,8 @@ class PostController extends Controller
 
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('posts', 'public');
-            // STORE_IMAGE_PATH
-            $imageUrl = 'storage/' . $path;
+            // url
+            $imageUrl = Storage::disk('public')->url($path);
         }
 
         $post = Post::create([

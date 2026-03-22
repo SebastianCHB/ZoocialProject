@@ -12,7 +12,7 @@ type PetCardProps = {
 };
 
 const { width } = Dimensions.get('window');
-const cardWidth = width * 0.42; // Two cards per row with padding
+const cardWidth = width * 0.42;
 
 export function PetCard({ name, breed, age, gender, imageUrl, onPress }: PetCardProps) {
   const isMale = gender.toLowerCase() === 'macho';

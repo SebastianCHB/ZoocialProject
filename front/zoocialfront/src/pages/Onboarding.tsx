@@ -42,15 +42,14 @@ export const Onboarding = () => {
                 edad: edad ? parseInt(edad) : null
             });
             
-            // Update auth context with new user data
             if (token) {
                 login(token, response.data);
             }
 
             if (isValidationRequired) {
-                setStep(2); // Go to document upload
+                setStep(2); 
             } else {
-                navigate('/feed'); // Normal users go straight to feed
+                navigate('/feed'); 
             }
         } catch (err: any) {
             setError(err.response?.data?.message || 'Error guardando perfil.');

@@ -8,21 +8,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { postService, Post, Comment } from '@/services/posts';
 import * as ImagePicker from 'expo-image-picker';
-import api, { API_URL } from '@/services/api';
+import api from '@/services/api';
+import { getFullImageUrl } from '@/utils/imageUtils';
 
 type Publicidad = { id_publicidad: number; texto?: string; archivo?: string; duracion?: number };
 type UserProfile = { id_usuario: number; nombre_completo: string; rol: string; ciudad?: string; correo_e?: string };
-
-const BASE_URL = API_URL.replace(/\/api\/?$/, '');
-function getFullImageUrl(url: string | undefined | null): string | undefined {
-  if (!url || url === 'null' || url === 'undefined') return undefined;
-  if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('file:')) return url;
-  let path = url.startsWith('/') ? url.slice(1) : url;
-  if (!path.startsWith('storage/')) {
-    path = 'storage/' + path;
-  }
-  return `${BASE_URL}/${path}`;
-}
 
 
 function getInitials(name: string) { return (name || 'U').slice(0, 2).toUpperCase(); }

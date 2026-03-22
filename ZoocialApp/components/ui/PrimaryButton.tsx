@@ -33,7 +33,7 @@ export function PrimaryButton({ title, onPress, isLoading = false, disabled = fa
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#0c5cb3', // Deep blue from the design
+    backgroundColor: '#0c5cb3', // Deep blue
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
