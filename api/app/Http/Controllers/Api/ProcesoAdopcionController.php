@@ -19,18 +19,26 @@ class ProcesoAdopcionController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'id_usuario' => 'required|integer|exists:usuarios,id_usuario',
-            'id_animalito' => 'required|integer|exists:animalitos,id_animalito',
-            'estado_solicitud' => 'required|string|max:50',
-            'nota' => 'nullable|string',
-            'fecha_creacion' => 'required|date'
+            'id_usuario'      => 'required|integer|exists:usuarios,id_usuario',
+            'id_animalito'    => 'required|integer|exists:animalitos,id_animalito',
+            'estado'          => 'nullable|string|max:50',
+            'estado_solicitud'=> 'nullable|string|max:50',
+            'notas'           => 'nullable|string',
+            'nota'            => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json($validator->errors(), 400);
         }
 
-        $proceso = ProcesoAdopcion::create($request->all());
+        $proceso = ProcesoAdopcion::create([
+            'id_usuario'       => $request->id_usuario,
+            'id_animalito'     => $request->id_animalito,
+            'estado_solicitud' => $request->estado ?? $request->estado_solicitud ?? 'pendiente',
+            'nota'             => $request->notas ?? $request->nota ?? null,
+            'fecha_creacion'   => now()->toDateString(),
+        ]);
+
         return response()->json($proceso, 201);
     }
 

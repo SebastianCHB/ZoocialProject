@@ -2,19 +2,7 @@ import { useState } from 'react';
 import { Heart, MessageCircle, Share2, Trash2 } from 'lucide-react';
 import { Modal } from './Modal';
 import api from '../../api/axios';
-
-function getFullImageUrl(url: string | undefined | null): string | undefined {
-    if (!url || url === 'null' || url === 'undefined') return undefined;
-    // absolute
-    if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('file:')) return url;
-    // normalize
-    let path = url.startsWith('/') ? url.slice(1) : url;
-    if (!path.startsWith('storage/')) {
-        path = 'storage/' + path;
-    }
-    // relative — proxied by Vite
-    return `/${path}`;
-}
+import { getFullImageUrl } from '../../utils/imageUrl';
 
 function getAvatarColor(name: string) {
     const colors = ['#0c5cb3', '#2a9d8f', '#e76f51', '#f69622', '#6a4c93', '#457b9d'];

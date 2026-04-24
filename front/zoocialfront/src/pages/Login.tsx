@@ -34,7 +34,7 @@ export const Login = () => {
                 if (response.data.user.nombre_completo === 'Nuevo Usuario') {
                     navigate('/onboarding');
                 } else if (response.data.user.rol === 'admin') {
-                    navigate('/dashboard');
+                    navigate('/admin-home');
                 } else {
                     navigate('/feed');
                 }

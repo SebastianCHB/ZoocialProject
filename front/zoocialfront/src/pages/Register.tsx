@@ -6,6 +6,7 @@ import { AuthCarousel } from '../components/ui/AuthCarousel';
 import api from '../api/axios';
 
 export const Register = () => {
+    const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -20,6 +21,7 @@ export const Register = () => {
 
         try {
             await api.post('/usuarios', {
+                nombre_completo: fullName,
                 correo_e: email,
                 password
             });
@@ -58,6 +60,17 @@ export const Register = () => {
 
                     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         
+                        <div style={{ position: 'relative' }}>
+                            <Input 
+                                type="text" 
+                                placeholder="Nombre Completo"
+                                value={fullName}
+                                onChange={(e) => setFullName(e.target.value)}
+                                required
+                                style={{ borderRadius: '30px', padding: '1rem 1.5rem', backgroundColor: '#fff', border: '1px solid #e2e8f0', width: '100%' }}
+                            />
+                        </div>
+
                         <div style={{ position: 'relative' }}>
                             <Input 
                                 type="email" 

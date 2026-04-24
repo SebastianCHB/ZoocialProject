@@ -2,41 +2,112 @@ import { useState } from 'react';
 import { Sidebar } from '../components/ui/Sidebar';
 import { TopNav } from '../components/ui/TopNav';
 import { useAuth } from '../context/AuthContext';
-import { ShoppingCart, CreditCard, X, CheckCircle } from 'lucide-react';
+import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
+import { ShoppingCart, X, CheckCircle, Package } from 'lucide-react';
+import api from '../api/axios';
 
 const mockProducts = [
-  { id: '1', name: 'Collar Ajustable Reflectivo', price: 150.00, formattedPrice: '$150.00', image: 'https://images.unsplash.com/photo-1602521921312-3f1cf17c6a51?w=400&auto=format&fit=crop' },
-  { id: '2', name: 'Correa Retráctil', price: 220.00, formattedPrice: '$220.00', image: 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?w=400&auto=format&fit=crop' },
-  { id: '3', name: 'Croquetas Premium 2kg', price: 450.00, formattedPrice: '$450.00', image: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=400&auto=format&fit=crop' },
-  { id: '4', name: 'Juguete Cuerda Bicolor', price: 85.00, formattedPrice: '$85.00', image: 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?w=400&auto=format&fit=crop' },
+    { id: '1', name: 'Collar Ajustable Reflectivo', price: 150.00, category: 'Accesorios', image: 'https://images.unsplash.com/photo-1602521921312-3f1cf17c6a51?w=400&auto=format&fit=crop&q=80' },
+    { id: '2', name: 'Correa Retráctil Premium', price: 220.00, category: 'Accesorios', image: 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?w=400&auto=format&fit=crop&q=80' },
+    { id: '3', name: 'Croquetas Premium 2kg', price: 450.00, category: 'Alimento', image: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=400&auto=format&fit=crop&q=80' },
+    { id: '4', name: 'Juguete Cuerda Interactivo', price: 85.00, category: 'Juguetes', image: 'https://images.unsplash.com/photo-1574144611937-0df059b5ef3e?w=400&auto=format&fit=crop&q=80' },
+    { id: '5', name: 'Cama Ortopédica Mascotas', price: 580.00, category: 'Descanso', image: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=400&auto=format&fit=crop&q=80' },
+    { id: '6', name: 'Transportadora Rígida L', price: 720.00, category: 'Transporte', image: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&auto=format&fit=crop&q=80' },
 ];
+
+const categoryColors: Record<string, string> = {
+    'Accesorios': '#eff6ff',
+    'Alimento': '#f0fdf4',
+    'Juguetes': '#fdf4ff',
+    'Descanso': '#fff7ed',
+    'Transporte': '#f8fafc',
+};
+
+const PayPalCheckout = ({ product, onSuccess, onCancel }: { product: any; onSuccess: () => void; onCancel: () => void }) => {
+    const [{ isPending }] = usePayPalScriptReducer();
+    const [error, setError] = useState('');
+
+    const handleApprove = async (_data: any, actions: any) => {
+        try {
+            const details = await actions.order.capture();
+            // Record payment in backend
+            try {
+                await api.post('/payments/record', {
+                    paypal_order_id: details.id,
+                    amount: product.price,
+                    type: 'purchase',
+                    description: product.name,
+                });
+            } catch (e) {
+                console.warn('Could not record payment:', e);
+            }
+            onSuccess();
+        } catch (e) {
+            setError('El pago fue cancelado o no se procesó correctamente.');
+        }
+    };
+
+    return (
+        <div>
+            <div style={{ backgroundColor: '#f8fafc', padding: '1rem 1.25rem', borderRadius: '12px', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#475569', fontSize: '0.9rem', fontWeight: 600 }}>Total a pagar:</span>
+                <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a' }}>${product.price.toFixed(2)} MXN</span>
+            </div>
+            {error && <div className="alert-error">{error}</div>}
+            {isPending ? (
+                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                    <div className="spinner" style={{ margin: '0 auto', width: '32px', height: '32px', borderWidth: '3px' }} />
+                    <p style={{ marginTop: '0.75rem', color: '#64748b', fontSize: '0.875rem' }}>Cargando PayPal...</p>
+                </div>
+            ) : (
+                <div className="paypal-container">
+                    <PayPalButtons
+                        style={{ layout: 'vertical', color: 'gold', shape: 'pill', label: 'pay' }}
+                        createOrder={(_data, actions) => {
+                            return actions.order.create({
+                                intent: 'CAPTURE',
+                                purchase_units: [{
+                                    amount: {
+                                        currency_code: 'USD',
+                                        value: (product.price / 17).toFixed(2), // MXN → USD approx
+                                    },
+                                    description: product.name,
+                                }],
+                            });
+                        }}
+                        onApprove={handleApprove}
+                        onError={() => setError('Ocurrió un error con PayPal. Intenta de nuevo.')}
+                        onCancel={onCancel}
+                    />
+                </div>
+            )}
+            <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.75rem' }}>
+                🔒 Pago seguro procesado por PayPal Sandbox
+            </p>
+        </div>
+    );
+};
 
 export const Store = () => {
     const { user } = useAuth();
-    
-    const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
     const [paymentSuccess, setPaymentSuccess] = useState(false);
-    const [processingPayment, setProcessingPayment] = useState(false);
+    const [activeCategory, setActiveCategory] = useState('Todos');
 
-    const handleBuyClick = (product: any) => {
+    const categories = ['Todos', ...Array.from(new Set(mockProducts.map(p => p.category)))];
+    const filtered = activeCategory === 'Todos' ? mockProducts : mockProducts.filter(p => p.category === activeCategory);
+
+    const handleBuy = (product: any) => {
         setSelectedProduct(product);
         setPaymentSuccess(false);
-        setIsCheckoutOpen(true);
     };
 
-    const handlePaymentSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        setProcessingPayment(true);
+    const handleSuccess = () => {
+        setPaymentSuccess(true);
         setTimeout(() => {
-            setProcessingPayment(false);
-            setPaymentSuccess(true);
-            setTimeout(() => {
-                setIsCheckoutOpen(false);
-                setPaymentSuccess(false);
-                setSelectedProduct(null);
-            }, 3000);
-        }, 2000);
+            setSelectedProduct(null);
+            setPaymentSuccess(false);
+        }, 4000);
     };
 
     return (
@@ -44,40 +115,71 @@ export const Store = () => {
             <Sidebar />
             <main className="main-content">
                 <TopNav title="Tienda Zoocial" userName={user?.nombre_completo} />
-                <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
-                    
-                    <div style={{ backgroundColor: '#f59e0b', borderRadius: '1rem', padding: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', color: 'white' }}>
+
+                <div style={{ padding: '1.5rem 2rem', maxWidth: '1100px', margin: '0 auto' }}>
+                    {/* Hero Banner */}
+                    <div style={{
+                        background: 'linear-gradient(135deg, #f59e0b 0%, #fb923c 100%)',
+                        borderRadius: '20px', padding: '2rem 2.5rem',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        marginBottom: '2rem', color: 'white', overflow: 'hidden', position: 'relative'
+                    }}>
                         <div>
-                            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>Ofertas Especiales</h2>
-                            <p style={{ opacity: 0.9 }}>Con cada compra ayudas a refugios locales.</p>
+                            <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.5rem' }}>Tienda para tus Peluditos 🐾</h2>
+                            <p style={{ opacity: 0.9, fontSize: '0.95rem' }}>Con cada compra apoyas a refugios locales de animales.</p>
                         </div>
-                        <ShoppingCart size={48} opacity={0.3} />
+                        <ShoppingCart size={64} style={{ opacity: 0.2, flexShrink: 0 }} />
                     </div>
 
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--color-dark)' }}>Productos Destacados</h3>
+                    {/* Category filter */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.75rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
+                        {categories.map(cat => (
+                            <button
+                                key={cat}
+                                onClick={() => setActiveCategory(cat)}
+                                style={{
+                                    padding: '0.5rem 1.1rem', borderRadius: '20px', whiteSpace: 'nowrap',
+                                    fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', border: 'none',
+                                    backgroundColor: activeCategory === cat ? '#f59e0b' : '#f1f5f9',
+                                    color: activeCategory === cat ? '#fff' : '#64748b',
+                                    transition: 'all 0.2s', fontFamily: 'var(--font-family)'
+                                }}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.5rem' }}>
-                        {mockProducts.map(product => (
-                            <div key={product.id} className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                                <div style={{ 
-                                    height: '200px', 
-                                    backgroundImage: `url(${product.image})`,
-                                    backgroundSize: 'cover',
-                                    backgroundPosition: 'center',
-                                }} />
-                                <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-                                    <h4 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--color-dark)', marginBottom: '0.5rem' }}>{product.name}</h4>
-                                    <p style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f59e0b', marginBottom: '1.5rem' }}>{product.formattedPrice}</p>
-                                    
-                                    <div style={{ marginTop: 'auto' }}>
-                                        <button 
-                                            className="btn btn-primary btn-full"
-                                            onClick={() => handleBuyClick(product)}
-                                            style={{ backgroundColor: '#f59e0b', borderColor: '#f59e0b', fontWeight: 600 }}
-                                        >
-                                            Comprar
-                                        </button>
+                    {/* Products Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.5rem' }}>
+                        {filtered.map(product => (
+                            <div key={product.id} className="card card-hover" style={{ padding: 0, overflow: 'hidden' }}>
+                                <div style={{
+                                    height: '200px', backgroundImage: `url(${product.image})`,
+                                    backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative',
+                                    backgroundColor: '#f1f5f9'
+                                }}>
+                                    <span style={{
+                                        position: 'absolute', top: '0.75rem', left: '0.75rem',
+                                        backgroundColor: categoryColors[product.category] || '#f1f5f9',
+                                        color: '#475569', padding: '0.2rem 0.6rem', borderRadius: '8px',
+                                        fontSize: '0.72rem', fontWeight: 700
+                                    }}>
+                                        {product.category}
+                                    </span>
+                                </div>
+                                <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    <div>
+                                        <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-dark)', marginBottom: '0.25rem' }}>{product.name}</h4>
+                                        <p style={{ fontSize: '1.3rem', fontWeight: 800, color: '#f59e0b' }}>${product.price.toFixed(2)} MXN</p>
                                     </div>
+                                    <button
+                                        className="btn btn-accent btn-full"
+                                        onClick={() => handleBuy(product)}
+                                        style={{ borderRadius: '10px' }}
+                                    >
+                                        <ShoppingCart size={16} /> Comprar con PayPal
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -85,76 +187,36 @@ export const Store = () => {
                 </div>
 
                 {/* Checkout Modal */}
-                {isCheckoutOpen && (
-                    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-                        <div className="card" style={{ width: '100%', maxWidth: '400px', margin: '1rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                                <h2 style={{ fontSize: '1.25rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <ShoppingCart size={24} color="#f59e0b" />
-                                    Comprar {selectedProduct?.name}
-                                </h2>
-                                <button onClick={() => setIsCheckoutOpen(false)} style={{ color: '#64748b', background: 'none', border: 'none', cursor: 'pointer' }}>
-                                    <X size={20} />
-                                </button>
-                            </div>
-
+                {selectedProduct && (
+                    <div className="modal-backdrop" onClick={() => !paymentSuccess && setSelectedProduct(null)}>
+                        <div className="modal-box" style={{ maxWidth: '440px' }} onClick={e => e.stopPropagation()}>
                             {paymentSuccess ? (
-                                <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
-                                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto' }}>
-                                        <CheckCircle size={32} color="#16a34a" />
+                                <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+                                    <div style={{ width: '72px', height: '72px', borderRadius: '50%', backgroundColor: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
+                                        <CheckCircle size={36} color="#16a34a" />
                                     </div>
-                                    <h3 style={{ fontSize: '1.2rem', color: '#166534', marginBottom: '0.5rem' }}>¡Compra Exitosa!</h3>
-                                    <p style={{ color: '#15803d' }}>Tu pedido de {selectedProduct?.name} está siendo procesado.</p>
+                                    <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#166534', marginBottom: '0.5rem' }}>¡Compra Exitosa!</h3>
+                                    <p style={{ color: '#15803d', fontSize: '0.95rem' }}>
+                                        Tu pedido de <strong>{selectedProduct.name}</strong> está siendo procesado. Recibirás confirmación pronto.
+                                    </p>
                                 </div>
                             ) : (
-                                <form onSubmit={handlePaymentSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                    <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.5, marginBottom: '0.5rem' }}>
-                                        Completa tu pago seguro con tarjeta de crédito/débito.
-                                    </p>
-                                    
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.5rem', borderBottom: '1px solid #e2e8f0', marginBottom: '0.5rem' }}>
-                                        <span style={{ fontWeight: 600, color: '#334155' }}>Total a pagar:</span>
-                                        <span style={{ fontWeight: 700, fontSize: '1.25rem', color: '#f59e0b' }}>{selectedProduct?.formattedPrice}</span>
+                                <>
+                                    <div className="modal-header">
+                                        <h2 style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <Package size={18} color="#f59e0b" />
+                                            {selectedProduct.name}
+                                        </h2>
+                                        <button onClick={() => setSelectedProduct(null)} style={{ color: '#64748b', cursor: 'pointer', background: 'none', border: 'none', display: 'flex' }}>
+                                            <X size={20} />
+                                        </button>
                                     </div>
-
-                                    <div className="input-group">
-                                        <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <CreditCard size={16} /> Número de Tarjeta
-                                        </label>
-                                        <input type="text" className="input-field" placeholder="0000 0000 0000 0000" required />
-                                    </div>
-
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                        <div className="input-group">
-                                            <label className="input-label">Vencimiento</label>
-                                            <input type="text" className="input-field" placeholder="MM/AA" required />
-                                        </div>
-                                        <div className="input-group">
-                                            <label className="input-label">CVV</label>
-                                            <input type="password" className="input-field" placeholder="123" required />
-                                        </div>
-                                    </div>
-
-                                    <div className="input-group">
-                                        <label className="input-label">Nombre en la tarjeta</label>
-                                        <input type="text" className="input-field" placeholder="Juan Pérez" required />
-                                    </div>
-
-                                    <div style={{ backgroundColor: '#f0fdf4', padding: '0.75rem', borderRadius: '0.5rem', marginTop: '0.5rem' }}>
-                                        <p style={{ fontSize: '0.8rem', color: '#166534', margin: 0, textAlign: 'center' }}>
-                                            Pago seguro procesado por Stripe.
-                                        </p>
-                                    </div>
-
-                                    <button 
-                                        type="submit" 
-                                        className="btn btn-primary" 
-                                        disabled={processingPayment}
-                                        style={{ width: '100%', marginTop: '1rem', padding: '0.75rem', backgroundColor: '#f59e0b', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', opacity: processingPayment ? 0.7 : 1 }}
-                                    >
-                                        {processingPayment ? 'Procesando...' : `Pagar ${selectedProduct?.formattedPrice}`}
-                                    </button>
-                                </form>
+                                    <PayPalCheckout
+                                        product={selectedProduct}
+                                        onSuccess={handleSuccess}
+                                        onCancel={() => setSelectedProduct(null)}
+                                    />
+                                </>
                             )}
                         </div>
                     </div>

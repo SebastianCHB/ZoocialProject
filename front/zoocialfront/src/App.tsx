@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
@@ -8,105 +8,168 @@ import { UsersManager } from './pages/UsersManager';
 import { PetsManager } from './pages/PetsManager';
 import { Feed } from './pages/Feed';
 import { Adoptions } from './pages/Adoptions';
+import { AdoptionsAdmin } from './pages/AdoptionsAdmin';
 import { Chat } from './pages/Chat';
 import { Store } from './pages/Store';
 import { Profile } from './pages/Profile';
+import { AdminHome } from './pages/AdminHome';
+import { BottomNav } from './components/ui/BottomNav';
 
 import type { ReactNode } from 'react';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: ReactNode, allowedRoles?: string[] }) => {
-  const { isAuthenticated, user, loading } = useAuth();
-  
-  if (loading) return <div>Loading...</div>;
-  if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
+    const { isAuthenticated, user, loading } = useAuth();
+    const location = useLocation();
 
-  const path = window.location.pathname;
+    if (loading) return (
+        <div style={{
+            height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexDirection: 'column', gap: '1rem', backgroundColor: 'var(--color-surface)'
+        }}>
+            <div className="spinner" style={{ width: '40px', height: '40px', borderWidth: '4px' }} />
+            <span style={{ color: '#64748b', fontSize: '0.9rem' }}>Cargando...</span>
+        </div>
+    );
+    if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
 
-  // Enforce Onboarding if the user is completely new (profile not filled out)
-  if (user.nombre_completo === 'Nuevo Usuario' && path !== '/onboarding') {
-      return <Navigate to="/onboarding" replace />;
-  }
+    const path = location.pathname;
 
-  // Prevent accessing Onboarding again if already completed
-  if (user.nombre_completo !== 'Nuevo Usuario' && path === '/onboarding') {
-      return <Navigate to="/feed" replace />;
-  }
+    if (user.nombre_completo === 'Nuevo Usuario' && path !== '/onboarding') {
+        return <Navigate to="/onboarding" replace />;
+    }
 
-  // Check roles
-  if (allowedRoles && !allowedRoles.includes(user.rol)) {
-      return <Navigate to="/feed" replace />; // Redirect unauthorized to feed
-  }
+    if (user.nombre_completo !== 'Nuevo Usuario' && path === '/onboarding') {
+        return <Navigate to="/feed" replace />;
+    }
 
-  // Check validations for Rescatista and Veterinario
-  if (user.rol === 'rescatista' || user.rol === 'veterinario') {
-      const validations = user.validaciones || [];
-      const hasApproved = validations.some((v: any) => v.estado === 'aprobado');
+    if (allowedRoles && !allowedRoles.includes(user.rol)) {
+        // Admin gets redirected to admin-home if trying to access user-only pages
+        if (user.rol === 'admin') return <Navigate to="/admin-home" replace />;
+        return <Navigate to="/feed" replace />;
+    }
 
-      // If they are trying to access regular protected pages but aren't approved
-      // Exception: Don't loop if they are in onboarding 
-      if (!hasApproved && path !== '/onboarding') {
-          // If we want a separate route we can use it, but for now they stay blocked or can see a pending state
-          // Alternatively, we could create a /pending-approval route.
-          // For now, allow them through to feed where they might see a "Pending" banner, or send them to onboarding to see step 3
-      }
-  }
+    return children;
+};
 
-  return children;
+// Layout wrapper that includes BottomNav on mobile
+const AppLayout = ({ children }: { children: ReactNode }) => {
+    const { isAuthenticated } = useAuth();
+    const location = useLocation();
+    const hideNav = ['/login', '/register', '/'].includes(location.pathname);
+    
+    return (
+        <>
+            {children}
+            {isAuthenticated && !hideNav && <BottomNav />}
+        </>
+    );
+};
+
+const PublicRoute = ({ children }: { children: ReactNode }) => {
+    const { isAuthenticated, user, loading } = useAuth();
+    
+    if (loading) return null;
+    
+    if (isAuthenticated && user) {
+        if (user.nombre_completo === 'Nuevo Usuario') return <Navigate to="/onboarding" replace />;
+        if (user.rol === 'admin') return <Navigate to="/admin-home" replace />;
+        return <Navigate to="/feed" replace />;
+    }
+    
+    return <>{children}</>;
 };
 
 function App() {
-  return (
-    <Router>
-      <AuthProvider>
-        <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          
-          <Route path="/onboarding" element={
-            <ProtectedRoute>
-              <Onboarding />
-            </ProtectedRoute>
-          } />
+    return (
+        <Router>
+            <AuthProvider>
+                <AppLayout>
+                    <Routes>
+                        {/* Public routes */}
+                        <Route path="/" element={<Navigate to="/login" replace />} />
+                        <Route path="/login" element={
+                            <PublicRoute>
+                                <Login />
+                            </PublicRoute>
+                        } />
+                        <Route path="/register" element={
+                            <PublicRoute>
+                                <Register />
+                            </PublicRoute>
+                        } />
 
-          <Route path="/dashboard" element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
+                        {/* Onboarding */}
+                        <Route path="/onboarding" element={
+                            <ProtectedRoute>
+                                <Onboarding />
+                            </ProtectedRoute>
+                        } />
 
-          <Route path="/feed" element={
-            <ProtectedRoute allowedRoles={['normal', 'rescatista', 'veterinario', 'admin']}>
-              <Feed />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/adoptions" element={
-            <ProtectedRoute allowedRoles={['normal', 'rescatista', 'veterinario']}>
-              <Adoptions />
-            </ProtectedRoute>
-          } />
-          
-          {/* App Routes */}
-          <Route path="/users" element={
-            <ProtectedRoute allowedRoles={['admin']}>
-                <UsersManager />
-            </ProtectedRoute>
-          } />
-          <Route path="/posts" element={
-            <ProtectedRoute allowedRoles={['admin', 'rescatista', 'normal', 'veterinario']}>
-                <PetsManager />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/support" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
-          <Route path="/store" element={<ProtectedRoute><Store /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        </Routes>
-      </AuthProvider>
-    </Router>
-  );
+                        {/* Admin home selector */}
+                        <Route path="/admin-home" element={
+                            <ProtectedRoute allowedRoles={['admin']}>
+                                <AdminHome />
+                            </ProtectedRoute>
+                        } />
+
+                        {/* Admin routes */}
+                        <Route path="/dashboard" element={
+                            <ProtectedRoute allowedRoles={['admin']}>
+                                <Dashboard />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/users" element={
+                            <ProtectedRoute allowedRoles={['admin']}>
+                                <UsersManager />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/posts" element={
+                            <ProtectedRoute allowedRoles={['admin']}>
+                                <PetsManager />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/adoptions-admin" element={
+                            <ProtectedRoute allowedRoles={['admin']}>
+                                <AdoptionsAdmin />
+                            </ProtectedRoute>
+                        } />
+
+                        {/* Shared routes (admin + users) */}
+                        <Route path="/feed" element={
+                            <ProtectedRoute allowedRoles={['normal', 'rescatista', 'veterinario', 'admin']}>
+                                <Feed />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/chat" element={
+                            <ProtectedRoute allowedRoles={['normal', 'rescatista', 'veterinario', 'admin']}>
+                                <Chat />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/profile" element={
+                            <ProtectedRoute allowedRoles={['normal', 'rescatista', 'veterinario', 'admin']}>
+                                <Profile />
+                            </ProtectedRoute>
+                        } />
+
+                        {/* User-only routes */}
+                        <Route path="/adoptions" element={
+                            <ProtectedRoute allowedRoles={['normal', 'rescatista', 'veterinario']}>
+                                <Adoptions />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/store" element={
+                            <ProtectedRoute allowedRoles={['normal', 'rescatista', 'veterinario']}>
+                                <Store />
+                            </ProtectedRoute>
+                        } />
+
+                        {/* Fallback */}
+                        <Route path="*" element={<Navigate to="/login" replace />} />
+                    </Routes>
+                </AppLayout>
+            </AuthProvider>
+        </Router>
+    );
 }
 
 export default App;

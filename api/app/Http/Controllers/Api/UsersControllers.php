@@ -64,7 +64,7 @@ class UsersControllers extends Controller
             'telefono' => 'nullable|string|max:20',
             'ciudad' => 'nullable|string|max:100',
             'fecha_registro' => 'sometimes|date',
-            'rol' => 'sometimes|in:normal,rescatista,veterinario',
+            'rol' => 'sometimes|in:normal,rescatista,veterinario,admin',
             'edad' => 'nullable|integer|min:0'
         ]);
 
@@ -78,6 +78,36 @@ class UsersControllers extends Controller
         }
 
         $usuario->update($data);
+        return response()->json($usuario, 200);
+    }
+
+    public function updateWithForm(Request $request, $id)
+    {
+        $usuario = Usuario::find($id);
+        if (!$usuario) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'nombre_completo' => 'sometimes|string|max:255',
+            'telefono' => 'nullable|string|max:20',
+            'ciudad' => 'nullable|string|max:100',
+            'imagen_perfil' => 'nullable|image|max:2048',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 400);
+        }
+
+        $data = $request->only(['nombre_completo', 'telefono', 'ciudad']);
+
+        // Handle avatar upload
+        if ($request->hasFile('imagen_perfil')) {
+            $path = $request->file('imagen_perfil')->store('public/avatars');
+            $data['imagen_perfil'] = str_replace('public/', 'storage/', $path);
+        }
+
+        $usuario->update(array_filter($data, fn($v) => $v !== null));
         return response()->json($usuario, 200);
     }
 

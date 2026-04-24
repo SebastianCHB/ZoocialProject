@@ -1,4 +1,5 @@
 import { ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export const AdComponent = () => {
     return (
@@ -18,10 +19,10 @@ export const AdComponent = () => {
                     <p style={{ margin: '0 0 0.5rem 0', color: '#15803d', fontSize: '0.9rem', lineHeight: 1.4 }}>
                         Descubre nuestra nueva línea nutritiva. Usa el código <strong>ZOOCIAL20</strong> para un 20% de descuento en tu primera compra en nuestra tienda.
                     </p>
-                    <a href="#" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#16a34a', fontWeight: 600, textDecoration: 'none', fontSize: '0.9rem' }}>
+                    <Link to="/store" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#16a34a', fontWeight: 600, textDecoration: 'none', fontSize: '0.9rem' }}>
                         Ver Oferta
                         <ExternalLink size={16} />
-                    </a>
+                    </Link>
                 </div>
             </div>
         </div>
