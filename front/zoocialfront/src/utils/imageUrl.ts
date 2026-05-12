@@ -1,20 +1,5 @@
-/**
- * Resolves any stored image path to an absolute URL.
- *
- * En desarrollo: Vite proxies /storage/* → Laravel localhost, so we use /storage/...
- * En producción (AlwaysData): el root .htaccess reescribe /storage/* → laravel/public/storage/*
- *
- * Paths almacenados en BD pueden ser:
- *   - "posts/abc.jpg"           (nuevo formato - path relativo)
- *   - "avatars/abc.jpg"         (nuevo formato - path relativo)
- *   - "storage/posts/abc.jpg"   (formato legacy)
- *   - "https://..."             (URL externa - pasa sin cambios)
- *   - "data:..."                (base64 - pasa sin cambios)
- */
 
 const BASE = import.meta.env.VITE_API_URL?.replace('/api', '') ?? '';
-// STORAGE_URL_FIX - Usar /storage/* (root .htaccess lo reescribe a laravel/public/storage/*)
-// En dev, Vite proxies /storage → localhost:8000. En prod, .htaccess lo resuelve.
 const STORAGE_BASE = BASE ? `${BASE}/storage` : `/storage`;
 
 export function getFullImageUrl(url: string | null | undefined): string | undefined {

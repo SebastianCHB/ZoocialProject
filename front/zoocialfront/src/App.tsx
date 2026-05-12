@@ -73,7 +73,7 @@ const PublicRoute = ({ children }: { children: ReactNode }) => {
     if (isAuthenticated && user) {
         if (user.nombre_completo === 'Nuevo Usuario') return <Navigate to="/onboarding" replace />;
         if (user.rol === 'admin') return <Navigate to="/admin-home" replace />;
-        // VET_REDIRECT - Veterinarios van a su vista al hacer login
+    
         if (user.rol === 'veterinario') return <Navigate to="/vet-view" replace />;
         return <Navigate to="/feed" replace />;
     }

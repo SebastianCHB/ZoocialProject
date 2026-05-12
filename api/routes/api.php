@@ -106,3 +106,7 @@ Route::apiResource('fotos', FotoController::class);
 Route::apiResource('identidades', IdentidadController::class);
 Route::apiResource('procesos-adopcion', ProcesoAdopcionController::class);
 Route::apiResource('publicidad', PublicidadController::class);
+
+use App\Http\Controllers\Api\PayPallController;
+Route::post('/paypal/create-order', [PayPallController::class, 'createOrder']);
+Route::post('/paypal/capture-order', [PayPallController::class, 'captureOrder']);
