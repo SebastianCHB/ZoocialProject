@@ -15,6 +15,7 @@ export const PetsManager = () => {
     // Modal state
     const [isAppFormOpen, setIsAppFormOpen] = useState(false);
     const [editingPet, setEditingPet] = useState<any | null>(null);
+    const [imageFile, setImageFile] = useState<File | null>(null);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -80,6 +81,7 @@ export const PetsManager = () => {
     const handleCloseForm = () => {
         setIsAppFormOpen(false);
         setEditingPet(null);
+        setImageFile(null);
         setError('');
     };
 
@@ -87,17 +89,32 @@ export const PetsManager = () => {
         e.preventDefault();
         setError('');
         try {
-            const payload = {
-                ...formData,
-                peso: parseFloat(formData.peso),
-                edad_estimada: parseFloat(formData.edad_estimada),
-                id_usuario_registrador: user?.id_usuario // Important: Assuming backend expects this
-            };
+            const formDataPayload = new FormData();
+            formDataPayload.append('nombre', formData.nombre);
+            formDataPayload.append('especie', formData.especie);
+            formDataPayload.append('raza', formData.raza || 'Mestizo');
+            formDataPayload.append('edad_estimada', formData.edad_estimada);
+            formDataPayload.append('sexo', formData.sexo);
+            formDataPayload.append('tamaño', formData.tamaño);
+            formDataPayload.append('peso', formData.peso);
+            formDataPayload.append('historia', formData.historia);
+            formDataPayload.append('estado_adopcion', formData.estado_adopcion);
+            if (user?.id_usuario) formDataPayload.append('id_usuario_registrador', user.id_usuario.toString());
+            
+            if (imageFile) {
+                formDataPayload.append('image', imageFile);
+            }
 
             if (editingPet) {
-                await api.put(`/animalito/${editingPet.id_animalito}`, payload);
+                // Laravel form data PUT using method spoofing
+                formDataPayload.append('_method', 'PUT');
+                await api.post(`/animalito/${editingPet.id_animalito}`, formDataPayload, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
             } else {
-                await api.post('/animalito', payload);
+                await api.post('/animalito', formDataPayload, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
             }
             handleCloseForm();
             fetchPets(); // Refresh list
@@ -260,6 +277,12 @@ export const PetsManager = () => {
                                 <div className="input-group">
                                     <label className="input-label">Historia</label>
                                     <textarea className="input-field" value={formData.historia} onChange={e => setFormData({...formData, historia: e.target.value})} rows={3} />
+                                </div>
+
+                                <div className="input-group">
+                                    <label className="input-label">Imagen de la mascota</label>
+                                    <input type="file" className="input-field" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] || null)} style={{ padding: '0.5rem' }} />
+                                    {editingPet && !imageFile && <small style={{color: '#64748b', marginTop: '4px', display: 'block'}}>Deja vacío para mantener la imagen actual</small>}
                                 </div>
 
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>

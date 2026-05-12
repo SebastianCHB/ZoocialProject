@@ -7,6 +7,7 @@ import { PostCard } from '../components/ui/PostCard';
 import { Modal as AlertModal } from '../components/ui/Modal';
 import { AdComponent } from '../components/ui/AdComponent';
 import api from '../api/axios';
+import { getFullImageUrl } from '../utils/imageUrl';
 
 function getAvatarColor(name: string) {
     const colors = ['#0c5cb3', '#2a9d8f', '#e76f51', '#f69622', '#6a4c93', '#457b9d'];
@@ -148,14 +149,24 @@ export const Feed = () => {
                 
                 <div style={{ padding: '0 1.5rem', maxWidth: '600px', margin: '0 auto', paddingBottom: '6rem' }}>
                     
-                    {/* Desktop Create Post Inline Trigger */}
+                    {/* FEED_AVATAR_PROPAGATION - Área crear post con avatar real del usuario */}
                     <div style={{ 
                         marginTop: '1.5rem', marginBottom: '2rem', padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', 
                         borderRadius: '16px', backgroundColor: 'white', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
                     }}>
-                        <div style={{ width: '45px', height: '45px', borderRadius: '50%', backgroundColor: getAvatarColor(name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '1.1rem', flexShrink: 0 }}>
-                            {name.substring(0, 2).toUpperCase()}
-                        </div>
+                        {/* Avatar del creador: foto real si existe, sino iniciales con color */}
+                        {getFullImageUrl(user?.imagen_perfil) ? (
+                            <img
+                                src={getFullImageUrl(user?.imagen_perfil)}
+                                alt={name}
+                                style={{ width: '45px', height: '45px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                        ) : (
+                            <div style={{ width: '45px', height: '45px', borderRadius: '50%', backgroundColor: getAvatarColor(name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '1.1rem', flexShrink: 0 }}>
+                                {name.substring(0, 2).toUpperCase()}
+                            </div>
+                        )}
                         <button 
                             onClick={() => setShowCreateModal(true)}
                             style={{ 

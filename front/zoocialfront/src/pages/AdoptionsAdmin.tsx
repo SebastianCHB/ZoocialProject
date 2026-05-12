@@ -2,27 +2,32 @@ import { useState, useEffect } from 'react';
 import { Sidebar } from '../components/ui/Sidebar';
 import { TopNav } from '../components/ui/TopNav';
 import { useAuth } from '../context/AuthContext';
-import { ClipboardList, CheckCircle, XCircle, Clock, RefreshCw, ExternalLink } from 'lucide-react';
+import { ClipboardList, CheckCircle, XCircle, Clock, RefreshCw, User, PawPrint } from 'lucide-react';
 import api from '../api/axios';
+import { getFullImageUrl } from '../utils/imageUrl';
 
+// STATUS_CONFIG_ADOPCION - Colores e íconos para cada estado de solicitud
 const STATUS_CONFIG = {
-    pendiente: { label: 'Pendiente', bg: '#fff7ed', color: '#ea580c', icon: <Clock size={14} /> },
-    aprobado: { label: 'Aprobado', bg: '#f0fdf4', color: '#16a34a', icon: <CheckCircle size={14} /> },
-    rechazado: { label: 'Rechazado', bg: '#fef2f2', color: '#dc2626', icon: <XCircle size={14} /> },
-};
+    pendiente: { label: 'Pendiente',  bg: '#fff7ed', color: '#ea580c', icon: <Clock size={14} /> },
+    aprobado:  { label: 'Aprobado',   bg: '#f0fdf4', color: '#16a34a', icon: <CheckCircle size={14} /> },
+    rechazado: { label: 'Rechazado',  bg: '#fef2f2', color: '#dc2626', icon: <XCircle size={14} /> },
+} as const;
 
+// ADOPCIONES_ADMIN_PAGE - Panel admin para gestionar procesos de adopción
 export const AdoptionsAdmin = () => {
     const { user } = useAuth();
     const [adoptions, setAdoptions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filterStatus, setFilterStatus] = useState('todos');
+    const [filterStatus, setFilterStatus] = useState<'todos' | 'pendiente' | 'aprobado' | 'rechazado'>('todos');
     const [updating, setUpdating] = useState<number | null>(null);
     const [error, setError] = useState('');
 
     const fetchAdoptions = async () => {
         setLoading(true);
+        setError('');
         try {
             const res = await api.get('/procesos-adopcion');
+            // ADOPCIONES_DATA - La API ahora devuelve relaciones usuario y animalito
             const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
             setAdoptions(data);
         } catch {
@@ -34,29 +39,35 @@ export const AdoptionsAdmin = () => {
 
     useEffect(() => { fetchAdoptions(); }, []);
 
+    // HANDLE_STATUS - Admin aprueba o rechaza solicitud. Usa 'estado_solicitud' (campo real DB)
     const handleStatusChange = async (id: number, newStatus: string) => {
         setUpdating(id);
         try {
+            // ESTADO_FIELD_FIX - Enviar 'estado' como alias; el controller normaliza a 'estado_solicitud'
             await api.put(`/procesos-adopcion/${id}`, { estado: newStatus });
-            setAdoptions(prev => prev.map(a =>
-                (a.id_proceso_adopcion === id || a.id === id) ? { ...a, estado: newStatus } : a
-            ));
+            setAdoptions(prev => prev.map(a => {
+                const aId = a.id_solicitud ?? a.id;
+                return aId === id
+                    ? { ...a, estado_solicitud: newStatus }
+                    : a;
+            }));
         } catch {
-            setError('No se pudo actualizar el estado.');
+            setError('No se pudo actualizar el estado. Intenta de nuevo.');
         } finally {
             setUpdating(null);
         }
     };
 
+    // FILTER_ADOPCIONES - Usar 'estado_solicitud' (campo correcto de la DB)
     const filtered = filterStatus === 'todos'
         ? adoptions
-        : adoptions.filter(a => a.estado === filterStatus);
+        : adoptions.filter(a => a.estado_solicitud === filterStatus);
 
     const counts = {
-        todos: adoptions.length,
-        pendiente: adoptions.filter(a => a.estado === 'pendiente').length,
-        aprobado: adoptions.filter(a => a.estado === 'aprobado').length,
-        rechazado: adoptions.filter(a => a.estado === 'rechazado').length,
+        todos:     adoptions.length,
+        pendiente: adoptions.filter(a => a.estado_solicitud === 'pendiente').length,
+        aprobado:  adoptions.filter(a => a.estado_solicitud === 'aprobado').length,
+        rechazado: adoptions.filter(a => a.estado_solicitud === 'rechazado').length,
     };
 
     return (
@@ -66,7 +77,7 @@ export const AdoptionsAdmin = () => {
                 <TopNav title="Procesos de Adopción" userName={user?.nombre_completo} />
 
                 <div style={{ padding: '1.5rem 2rem' }}>
-                    {/* Header */}
+                    {/* HEADER_ADOPCIONES */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                         <div>
                             <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-dark)', margin: 0 }}>
@@ -81,7 +92,7 @@ export const AdoptionsAdmin = () => {
                         </button>
                     </div>
 
-                    {/* Status filter tabs */}
+                    {/* STATUS_FILTER_TABS */}
                     <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                         {(['todos', 'pendiente', 'aprobado', 'rechazado'] as const).map(status => {
                             const count = counts[status];
@@ -97,8 +108,7 @@ export const AdoptionsAdmin = () => {
                                         backgroundColor: isActive ? (cfg?.bg ?? 'var(--color-dark)') : '#f1f5f9',
                                         color: isActive ? (cfg?.color ?? '#fff') : '#64748b',
                                         display: 'flex', alignItems: 'center', gap: '0.4rem',
-                                        fontFamily: 'var(--font-family)',
-                                        transition: 'all 0.15s ease'
+                                        fontFamily: 'var(--font-family)', transition: 'all 0.15s ease'
                                     }}
                                 >
                                     {cfg?.icon}
@@ -130,47 +140,76 @@ export const AdoptionsAdmin = () => {
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             {filtered.map(a => {
-                                const id = a.id_proceso_adopcion ?? a.id;
-                                const status = a.estado ?? 'pendiente';
-                                const cfg = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pendiente;
+                                // ADOPCION_ID_RESOLVE - campo correcto de la DB es id_solicitud
+                                const id = a.id_solicitud ?? a.id;
+                                // ESTADO_SOLICITUD_RESOLVE - campo correcto de la DB
+                                const status = (a.estado_solicitud ?? 'pendiente') as keyof typeof STATUS_CONFIG;
+                                const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.pendiente;
                                 const isUpdating = updating === id;
+
+                                // RELACIONES_RESOLVE - usuario y animalito cargados por el controller
+                                const nombreUsuario = a.usuario?.nombre_completo ?? `Usuario #${a.id_usuario}`;
+                                const nombreMascota = a.animalito?.nombre ?? `Mascota #${a.id_animalito}`;
+                                const fotoMascota = a.animalito?.fotos?.[0]?.archivo;
 
                                 return (
                                     <div key={id} className="card" style={{ padding: '1.25rem 1.5rem' }}>
                                         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                                                    <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-dark)' }}>
-                                                        Proceso #{id}
-                                                    </span>
-                                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', backgroundColor: cfg.bg, color: cfg.color, padding: '0.2rem 0.65rem', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 700 }}>
-                                                        {cfg.icon} {cfg.label}
-                                                    </span>
+                                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flex: 1 }}>
+                                                {/* MASCOTA_THUMBNAIL */}
+                                                <div style={{
+                                                    width: '56px', height: '56px', borderRadius: '12px',
+                                                    backgroundColor: '#f1f5f9', flexShrink: 0, overflow: 'hidden',
+                                                    backgroundImage: fotoMascota ? `url(${getFullImageUrl(fotoMascota)})` : 'none',
+                                                    backgroundSize: 'cover', backgroundPosition: 'center',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                }}>
+                                                    {!fotoMascota && <PawPrint size={24} color="#94a3b8" />}
                                                 </div>
-                                                <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', color: '#64748b', fontSize: '0.875rem' }}>
-                                                    {a.id_animalito && (
-                                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                                            <ExternalLink size={13} /> Mascota ID: {a.id_animalito}
+
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                                                        <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-dark)' }}>
+                                                            {nombreMascota}
                                                         </span>
-                                                    )}
-                                                    {a.id_usuario && (
-                                                        <span>Solicitante ID: {a.id_usuario}</span>
-                                                    )}
-                                                    {a.created_at && (
-                                                        <span>{new Date(a.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                                        <span style={{
+                                                            display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                                                            backgroundColor: cfg.bg, color: cfg.color,
+                                                            padding: '0.2rem 0.65rem', borderRadius: '20px',
+                                                            fontSize: '0.78rem', fontWeight: 700
+                                                        }}>
+                                                            {cfg.icon} {cfg.label}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* SOLICITANTE_INFO */}
+                                                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', color: '#64748b', fontSize: '0.875rem' }}>
+                                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                            <User size={13} /> {nombreUsuario}
+                                                        </span>
+                                                        {a.fecha_creacion && (
+                                                            <span>
+                                                                {new Date(a.fecha_creacion).toLocaleDateString('es-MX', {
+                                                                    day: 'numeric', month: 'short', year: 'numeric'
+                                                                })}
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* NOTA_SOLICITUD */}
+                                                    {(a.nota || a.notas) && (
+                                                        <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#475569', backgroundColor: '#f8fafc', padding: '0.5rem 0.75rem', borderRadius: '8px' }}>
+                                                            {a.nota ?? a.notas}
+                                                        </p>
                                                     )}
                                                 </div>
-                                                {a.notas && (
-                                                    <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#475569', backgroundColor: '#f8fafc', padding: '0.5rem 0.75rem', borderRadius: '8px' }}>
-                                                        {a.notas}
-                                                    </p>
-                                                )}
                                             </div>
 
-                                            {/* Action buttons */}
+                                            {/* ACTION_BUTTONS */}
                                             {status === 'pendiente' && (
                                                 <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                                                     <button
+                                                        id={`approve-${id}`}
                                                         onClick={() => handleStatusChange(id, 'aprobado')}
                                                         disabled={isUpdating}
                                                         className="btn"
@@ -179,6 +218,7 @@ export const AdoptionsAdmin = () => {
                                                         <CheckCircle size={15} /> Aprobar
                                                     </button>
                                                     <button
+                                                        id={`reject-${id}`}
                                                         onClick={() => handleStatusChange(id, 'rechazado')}
                                                         disabled={isUpdating}
                                                         className="btn"
@@ -190,6 +230,7 @@ export const AdoptionsAdmin = () => {
                                             )}
                                             {status !== 'pendiente' && (
                                                 <button
+                                                    id={`revert-${id}`}
                                                     onClick={() => handleStatusChange(id, 'pendiente')}
                                                     disabled={isUpdating}
                                                     className="btn btn-secondary"

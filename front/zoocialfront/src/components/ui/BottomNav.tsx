@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Heart, ShoppingBag, MessageCircle, User, LayoutDashboard, Users, PawPrint, ClipboardList } from 'lucide-react';
+import { Home, Heart, ShoppingBag, MessageCircle, User, LayoutDashboard, Users, PawPrint, ClipboardList, Stethoscope } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const NAV_STYLE: React.CSSProperties = {
@@ -10,7 +10,6 @@ const NAV_STYLE: React.CSSProperties = {
     height: '60px',
     backgroundColor: '#fff',
     borderTop: '1px solid #e8e8e8',
-    display: 'flex',
     alignItems: 'stretch',
     zIndex: 900,
     boxShadow: '0 -2px 12px rgba(0,0,0,0.06)',
@@ -62,7 +61,15 @@ export const BottomNav = () => {
         { to: '/profile', icon: <User size={20} />, label: 'Perfil' },
     ];
 
-    const links = user?.rol === 'admin' ? adminLinks : userLinks;
+    const vetLinks = [
+        { to: '/feed', icon: <Home size={20} />, label: 'Inicio' },
+        { to: '/vet-view', icon: <Stethoscope size={20} />, label: 'Panel Vet' },
+        { to: '/adoptions', icon: <Heart size={20} />, label: 'Adoptar' },
+        { to: '/chat', icon: <MessageCircle size={20} />, label: 'Chat' },
+        { to: '/profile', icon: <User size={20} />, label: 'Perfil' },
+    ];
+
+    const links = user?.rol === 'admin' ? adminLinks : (user?.rol === 'veterinario' ? vetLinks : userLinks);
 
     // Only show on mobile → hidden via CSS on desktop
     return (

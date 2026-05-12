@@ -21,12 +21,21 @@ use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\StreakController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\MailTestController;
 
 // ============================================================
 // PUBLIC ROUTES
 // ============================================================
 Route::post('/login', [AuthController::class, 'login']);
+// REGISTER_PUBLIC - Endpoint público para registro. UsersControllers@store acepta campo 'rol'
 Route::post('/register', [UsersControllers::class, 'store']);
+
+// AUTH_EMAIL_ROUTES - Password reset y verificación de cuenta
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/reset-password',  [AuthController::class, 'resetPassword']);
+Route::get('/verify-email',     [UsersControllers::class, 'verifyEmail']); // ?token=XXX
+// MAIL_TEST - Solo funciona cuando APP_DEBUG=true
+Route::get('/mail-test',        [MailTestController::class, 'test']);     // ?to=email
 
 // ============================================================
 // AUTHENTICATED ROUTES
@@ -61,13 +70,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/messages/thread/{partnerId}', [MessageController::class, 'conversation']);
     Route::post('/messages/send', [MessageController::class, 'store']);
 
+    // MIS_ADOPCIONES - Usuario autenticado ve sus propias solicitudes de adopción
+    Route::get('/mis-adopciones', [ProcesoAdopcionController::class, 'misAdopciones']);
+
     // Gamification – Streaks
     Route::get('/streak/me', [StreakController::class, 'show']);
     Route::post('/streak/ping', [StreakController::class, 'ping']);
 
-    // Payments (PayPal record)
+    // Payments — flujo legado (JS SDK frontend)
     Route::post('/payments/record', [PaymentController::class, 'record']);
     Route::get('/payments/my-orders', [PaymentController::class, 'myOrders']);
+
+    // PayPal — flujo server-side (srmklive/paypal)
+    Route::post('/paypal/create-order', [PaymentController::class, 'createOrder']);
+    Route::post('/paypal/capture-order', [PaymentController::class, 'captureOrder']);
 
     // Users (protected – admin context)
     Route::get('/usuarios', [UsersControllers::class, 'index']);

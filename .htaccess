@@ -1,13 +1,26 @@
 Options -MultiViews -Indexes
+DirectoryIndex index.html index.php
 RewriteEngine On
 
+# Servir archivos estáticos existentes directamente
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
+# Servir directorios existentes directamente
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
-RewriteCond %{REQUEST_URI} ^/api
-RewriteRule ^api/(.*)$ api/public/index.php [L,QSA]
+# STORAGE_REWRITE - /storage/* → laravel/public/storage/* (symlink)
+RewriteRule ^storage/(.*)$ laravel/public/storage/$1 [L]
 
+# API_ROUTE_REWRITE - Enrutar /api/* al front controller de Laravel (carpeta laravel/ en el servidor)
+RewriteCond %{REQUEST_URI} ^/api
+RewriteRule ^api/(.*)$ laravel/public/index.php [L,QSA]
+
+# SPA_FALLBACK - Todo lo demás va al app React
 RewriteRule ^ index.html [L]
+
+# PAYPAL_CSP - Permitir iframes de PayPal
+<IfModule mod_headers.c>
+    Header always append Content-Security-Policy "frame-src 'self' https://*.paypal.com https://*.paypalobjects.com;"
+</IfModule>

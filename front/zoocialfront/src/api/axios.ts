@@ -19,4 +19,16 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+// AUTO_LOGOUT_ON_401 - Si el servidor retorna 401, el token expiró: limpiar sesión
+api.interceptors.response.use(
+    res => res,
+    err => {
+        if (err.response?.status === 401) {
+            localStorage.removeItem('token');
+            window.location.hash = '#/login';
+        }
+        return Promise.reject(err);
+    }
+);
+
 export default api;

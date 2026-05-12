@@ -22,12 +22,16 @@ return new class extends Migration
               ->constrained('animalitos', 'id_animalito')
               ->onDelete('cascade');
 
-        $table->string('estado_solicitud', 30);
-        $table->string('nota', 30)->nullable();
-        $table->date('fecha_creacion');
+        // ESTADO_FIELD - Estado de la solicitud de adopción
+        $table->string('estado_solicitud', 30)->default('pendiente');
+        // NOTA_FIELD_FIX - Ampliado de varchar(30) a text para notas largas
+        $table->text('nota')->nullable();
+        // FECHA_CREACION - Fecha de la solicitud con default automático
+        $table->date('fecha_creacion')->nullable();
 
         $table->timestamps();
     });
+
 }
 
 

@@ -14,7 +14,8 @@ class PostController extends Controller
     public function index()
     {
         // EXTRACT_POSTS_WITH_RELATIONS
-        $posts = Post::with(['usuario:id_usuario,nombre_completo,rol', 'comments.usuario:id_usuario,nombre_completo,rol', 'likesCount'])
+        // INCLUDE_AVATAR - Incluir imagen_perfil para mostrar avatar del autor en PostCard
+        $posts = Post::with(['usuario:id_usuario,nombre_completo,rol,imagen_perfil', 'comments.usuario:id_usuario,nombre_completo,rol', 'likesCount'])
             ->orderBy('created_at', 'desc')
             ->get();
             
@@ -32,9 +33,10 @@ class PostController extends Controller
         $imageUrl = null;
 
         if ($request->hasFile('image')) {
+            // STORE_RELATIVE_PATH - Guardar path relativo; el frontend resuelve la URL completa
+            // via getFullImageUrl() que conoce la ruta correcta de storage en AlwaysData
             $path = $request->file('image')->store('posts', 'public');
-            // url
-            $imageUrl = Storage::disk('public')->url($path);
+            $imageUrl = $path; // e.g. "posts/abc123.jpg"
         }
 
         $post = Post::create([
@@ -93,7 +95,7 @@ class PostController extends Controller
     {
         $userId = $request->user()->id_usuario;
         
-        $posts = Post::with(['usuario:id_usuario,nombre_completo,rol', 'comments.usuario:id_usuario,nombre_completo,rol', 'likesCount'])
+        $posts = Post::with(['usuario:id_usuario,nombre_completo,rol,imagen_perfil', 'comments.usuario:id_usuario,nombre_completo,rol', 'likesCount'])
             ->where('id_usuario', $userId)
             ->orderBy('created_at', 'desc')
             ->get();

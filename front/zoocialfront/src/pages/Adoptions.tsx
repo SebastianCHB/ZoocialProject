@@ -3,10 +3,9 @@ import { Sidebar } from '../components/ui/Sidebar';
 import { TopNav } from '../components/ui/TopNav';
 import { useAuth } from '../context/AuthContext';
 import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
-import { Heart, Gift, X, Plus, Camera, CheckCircle, AlertCircle } from 'lucide-react';
+import { Heart, Gift, X, Plus, Camera, CheckCircle, AlertCircle, Clock, ListChecks } from 'lucide-react';
 import api from '../api/axios';
 import { useStreak } from '../api/useStreak';
-
 import { getFullImageUrl } from '../utils/imageUrl';
 
 
@@ -17,7 +16,11 @@ const DonationPayPal = ({ amount, onSuccess, onCancel }: { amount: string; onSuc
     const { user } = useAuth();
     const [error, setError] = useState('');
 
-    const usdAmount = (parseFloat(amount) / 17).toFixed(2);
+    // USD_AMOUNT_SAFE - Proteger contra NaN: si amount no es número válido usar 0.01
+    const parsedMXN = parseFloat(amount);
+    const usdAmount = (isNaN(parsedMXN) || parsedMXN <= 0)
+        ? '0.01'
+        : (parsedMXN / 17).toFixed(2);
 
     const handleApprove = async (_data: any, actions: any) => {
         try {
@@ -52,13 +55,17 @@ const DonationPayPal = ({ amount, onSuccess, onCancel }: { amount: string; onSuc
                 <div className="paypal-container">
                     <PayPalButtons
                         style={{ layout: 'vertical', color: 'gold', shape: 'pill', label: 'donate' }}
-                        createOrder={(_d, actions) => actions.order.create({
-                            intent: 'CAPTURE',
-                            purchase_units: [{
-                                amount: { currency_code: 'USD', value: usdAmount },
-                                description: 'Donación a refugio Zoocial',
-                            }]
-                        })}
+                        createOrder={(_d, actions) => {
+                            // PAYPAL_AMOUNT_SAFE - Garantizar mínimo USD 0.01 y string correcto
+                            const safeUsd = Math.max(parseFloat(usdAmount), 0.01).toFixed(2);
+                            return actions.order.create({
+                                intent: 'CAPTURE' as const,
+                                purchase_units: [{
+                                    amount: { currency_code: 'USD', value: safeUsd },
+                                    description: 'Donación a refugio Zoocial',
+                                }]
+                            });
+                        }}
                         onApprove={handleApprove}
                         onError={() => setError('Error en PayPal. Intenta de nuevo.')}
                         onCancel={onCancel}
@@ -104,7 +111,26 @@ export const Adoptions = () => {
 
     const [viewerImage, setViewerImage] = useState<string | null>(null);
 
-    useEffect(() => { fetchPets(); }, []);
+    // MIS_SOLICITUDES_STATE
+    const [activeTab, setActiveTab] = useState<'adoptar' | 'mis-solicitudes'>('adoptar');
+    const [misSolicitudes, setMisSolicitudes] = useState<any[]>([]);
+    const [loadingSolicitudes, setLoadingSolicitudes] = useState(false);
+
+    const fetchMisSolicitudes = async () => {
+        setLoadingSolicitudes(true);
+        try {
+            const res = await api.get('/mis-adopciones');
+            setMisSolicitudes(Array.isArray(res.data) ? res.data : []);
+        } catch { setMisSolicitudes([]); }
+        finally { setLoadingSolicitudes(false); }
+    };
+
+    // SOLICITUD_EXISTE - Verificar si ya hay solicitud pendiente para esta mascota
+    const yaHaySolicitud = (id: number) =>
+        misSolicitudes.some(s => s.id_animalito === id && s.estado_solicitud === 'pendiente');
+
+    useEffect(() => { fetchPets(); fetchMisSolicitudes(); }, []);
+    useEffect(() => { if (activeTab === 'mis-solicitudes') fetchMisSolicitudes(); }, [activeTab]);
 
     const fetchPets = async () => {
         setLoading(true);
@@ -120,10 +146,14 @@ export const Adoptions = () => {
 
     const filteredPets = pets.filter(pet => {
         if (activeFilter === 'Todos') return true;
-        const especie = (pet.especie || '').toLowerCase();
-        if (activeFilter === 'Perros') return especie.includes('perro') || especie.includes('canino') || especie === '1';
-        if (activeFilter === 'Gatos') return especie.includes('gato') || especie.includes('felino') || especie === '2';
-        if (activeFilter === 'Aves') return especie.includes('ave') || especie.includes('pajaro') || especie === '3';
+        // ESPECIE_RESOLVE - raza puede ser objeto o string, especie puede ser string o nested
+        const rawEspecie = typeof pet.raza === 'object'
+            ? (pet.raza?.especie?.nombre_especie ?? pet.raza?.especie?.especie ?? '')
+            : (pet.especie ?? '');
+        const especie = rawEspecie.toLowerCase();
+        if (activeFilter === 'Perros') return especie.includes('perro') || especie.includes('canino');
+        if (activeFilter === 'Gatos') return especie.includes('gato') || especie.includes('felino');
+        if (activeFilter === 'Aves') return especie.includes('ave') || especie.includes('pajaro');
         return true;
     });
 
@@ -139,9 +169,14 @@ export const Adoptions = () => {
                 notas: `Solicitud de adopción de ${user.nombre_completo}`,
             });
             setAdoptionSuccess(true);
-            await pingStreak(); // Interaction counts for streak
+            fetchMisSolicitudes(); // SOLICITUD_REFRESH
+            await pingStreak();
         } catch (err: any) {
-            setAdoptionError(err.response?.data?.message || 'No se pudo enviar la solicitud. Intenta de nuevo.');
+            if (err.response?.status === 409) {
+                setAdoptionError('Ya tienes una solicitud pendiente para esta mascota.');
+            } else {
+                setAdoptionError(err.response?.data?.message || 'No se pudo enviar la solicitud.');
+            }
         } finally {
             setAdoptionLoading(false);
         }
@@ -154,13 +189,14 @@ export const Adoptions = () => {
         try {
             const formData = new FormData();
             formData.append('nombre', newName);
+            // FIELD_ALIAS_FIX - Enviar campos que el AnimalitoController acepta
+            formData.append('sexo', newGenero.toLowerCase());      // sexo→genero alias en controller
+            formData.append('estado_adopcion', 'disponible');      // →disponibilidad alias
+            formData.append('edad_estimada', newEdad);             // →edad_estimado alias
             formData.append('especie', newEspecie);
             formData.append('raza', newRaza || 'Mestizo');
-            formData.append('edad_estimada', newEdad);
-            formData.append('sexo', newGenero.toLowerCase());
             formData.append('tamaño', newSize.toLowerCase());
             formData.append('historia', newDesc);
-            formData.append('estado_adopcion', 'disponible');
             if (imageFile) formData.append('imagenes[]', imageFile);
 
             await api.post('/animalito', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -191,7 +227,7 @@ export const Adoptions = () => {
                 <TopNav title="Adopciones" userName={user?.nombre_completo} />
 
                 <div style={{ padding: '1.25rem 1.5rem' }}>
-                    {/* Header row */}
+                    {/* HEADER_ROW */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                         <div>
                             <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: 'var(--color-dark)' }}>
@@ -202,11 +238,7 @@ export const Adoptions = () => {
                             </p>
                         </div>
                         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                            <button
-                                onClick={() => { setIsDonationOpen(true); setDonationSuccess(false); setDonationAmount('5'); }}
-                                className="btn btn-secondary"
-                                style={{ gap: '0.4rem', fontSize: '0.85rem' }}
-                            >
+                            <button onClick={() => { setIsDonationOpen(true); setDonationSuccess(false); setDonationAmount('5'); }} className="btn btn-secondary" style={{ gap: '0.4rem', fontSize: '0.85rem' }}>
                                 <Gift size={16} /> Donar
                             </button>
                             {canAddPet && (
@@ -217,8 +249,32 @@ export const Adoptions = () => {
                         </div>
                     </div>
 
-                    {/* Category filters */}
+                    {/* ADOPTAR_MIS_SOLICITUDES_TABS */}
+                    <div style={{ display: 'flex', gap: '0', marginBottom: '1.5rem', borderBottom: '2px solid #f1f5f9' }}>
+                        {[{ id: 'adoptar', label: 'Adoptar', icon: <Heart size={14}/> }, { id: 'mis-solicitudes', label: 'Mis Solicitudes', icon: <ListChecks size={14}/> }].map(tab => (
+                            <button key={tab.id} id={`tab-${tab.id}`} onClick={() => setActiveTab(tab.id as any)}
+                                style={{
+                                    padding: '0.65rem 1.25rem', fontWeight: 700, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.4rem',
+                                    cursor: 'pointer', border: 'none', background: 'none', fontFamily: 'var(--font-family)',
+                                    color: activeTab === tab.id ? 'var(--color-accent)' : '#94a3b8',
+                                    borderBottom: activeTab === tab.id ? '2px solid var(--color-accent)' : '2px solid transparent',
+                                    marginBottom: '-2px', transition: 'all 0.2s'
+                                }}
+                            >
+                                {tab.icon} {tab.label}
+                                {tab.id === 'mis-solicitudes' && misSolicitudes.length > 0 && (
+                                    <span style={{ backgroundColor: 'var(--color-accent)', color: '#fff', borderRadius: '10px', fontSize: '0.7rem', padding: '0.05rem 0.4rem', fontWeight: 700 }}>{misSolicitudes.length}</span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* TAB_ADOPTAR */}
+                    {activeTab === 'adoptar' && (
+                    <>
+                    {/* CATEGORY_FILTERS */}
                     <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
+
                         {CATEGORIES.map(cat => (
                             <button
                                 key={cat}
@@ -249,9 +305,13 @@ export const Adoptions = () => {
                     ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.25rem' }}>
                             {filteredPets.map(pet => {
-                                const status = pet.estado_adopcion ?? 'disponible';
+                                const status = pet.estado_adopcion ?? pet.disponibilidad ?? 'disponible';
                                 const sb = statusMap[status] ?? statusMap.disponible;
                                 const img = pet.fotos?.[0]?.archivo ?? pet.imagen_url ?? '';
+                                // FIELD_RESOLVE - genero/sexo y disponibilidad/estado_adopcion pueden variar
+                                const petGenero = pet.sexo ?? pet.genero ?? 'N/A';
+                                const petEdad = pet.edad_estimada ?? pet.edad_estimado ?? 'N/A';
+                                const petTamaño = pet.tamaño ?? pet.size ?? '';
                                 const isAvailable = status === 'disponible';
 
                                 return (
@@ -274,10 +334,10 @@ export const Adoptions = () => {
                                         <div style={{ padding: '1rem' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.3rem' }}>
                                                 <h3 style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-dark)', margin: 0 }}>{pet.nombre}</h3>
-                                                <span style={{ fontSize: '0.8rem', color: '#94a3b8', textTransform: 'capitalize' }}>{pet.sexo ?? pet.genero ?? 'N/A'}</span>
+                                                <span style={{ fontSize: '0.8rem', color: '#94a3b8', textTransform: 'capitalize' }}>{petGenero}</span>
                                             </div>
                                             <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0 0 0.75rem', textTransform: 'capitalize' }}>
-                                                {pet.tamaño} · {pet.edad_estimada} años
+                                                {petTamaño ? `${petTamaño} · ` : ''}{petEdad !== 'N/A' ? `${petEdad} años` : ''}
                                             </p>
                                             <button
                                                 className="btn btn-full"
@@ -292,6 +352,8 @@ export const Adoptions = () => {
                                 );
                             })}
                         </div>
+                    )}
+                    </>
                     )}
                 </div>
 
@@ -334,11 +396,16 @@ export const Adoptions = () => {
                                     )}
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
                                         {[
-                                            { label: 'Especie', value: selectedPet.especie || 'N/A' },
-                                            { label: 'Raza', value: selectedPet.raza || 'Mestizo' },
+                                            // DETAIL_FIELDS_RESOLVE - calcular desde selectedPet (no del map scope)
+                                            { label: 'Especie', value: (typeof selectedPet.raza === 'object'
+                                                ? (selectedPet.raza?.especie?.nombre_especie ?? selectedPet.raza?.especie?.especie ?? selectedPet.especie)
+                                                : selectedPet.especie) || 'N/A' },
+                                            { label: 'Raza', value: (typeof selectedPet.raza === 'object'
+                                                ? (selectedPet.raza?.nombre_raza)
+                                                : selectedPet.raza) || 'Mestizo' },
                                             { label: 'Género', value: selectedPet.sexo || selectedPet.genero || 'N/A' },
-                                            { label: 'Edad', value: `${selectedPet.edad_estimada ?? 'N/A'} años` },
-                                            { label: 'Tamaño', value: selectedPet.tamaño || 'N/A' },
+                                            { label: 'Edad', value: `${selectedPet.edad_estimada ?? selectedPet.edad_estimado ?? 'N/A'} años` },
+                                            { label: 'Tamaño', value: selectedPet.tamaño || selectedPet.size || 'N/A' },
                                             { label: 'Peso', value: selectedPet.peso ? `${selectedPet.peso} lbs` : 'N/A' },
                                         ].map(item => (
                                             <div key={item.label} style={{ backgroundColor: '#f8fafc', padding: '0.65rem 0.875rem', borderRadius: '10px' }}>
@@ -360,21 +427,73 @@ export const Adoptions = () => {
                                     <button
                                         className="btn btn-primary btn-full"
                                         onClick={handleAdoptionRequest}
-                                        disabled={adoptionLoading || selectedPet.estado_adopcion !== 'disponible'}
-                                        style={{ padding: '0.875rem', borderRadius: '12px', gap: '0.5rem', opacity: selectedPet.estado_adopcion !== 'disponible' ? 0.5 : 1 }}
+                                        disabled={adoptionLoading || (selectedPet.estado_adopcion ?? selectedPet.disponibilidad) !== 'disponible' || yaHaySolicitud(selectedPet.id_animalito)}
+                                        style={{ padding: '0.875rem', borderRadius: '12px', gap: '0.5rem', opacity: ((selectedPet.estado_adopcion ?? selectedPet.disponibilidad) !== 'disponible' || yaHaySolicitud(selectedPet.id_animalito)) ? 0.5 : 1 }}
                                     >
                                         {adoptionLoading ? (
                                             <><div className="spinner" style={{ width: '18px', height: '18px', borderWidth: '2px', borderTopColor: 'white' }} /> Enviando...</>
+                                        ) : yaHaySolicitud(selectedPet.id_animalito) ? (
+                                            <><Clock size={17} /> Solicitud enviada</>
                                         ) : (
                                             <><Heart size={17} /> Solicitar Adopción</>
                                         )}
                                     </button>
-                                    {selectedPet.estado_adopcion !== 'disponible' && (
+                                    {(selectedPet.estado_adopcion ?? selectedPet.disponibilidad) !== 'disponible' && (
                                         <p style={{ textAlign: 'center', fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.5rem' }}>Esta mascota ya no está disponible para adopción.</p>
                                     )}
                                 </>
                             )}
                         </div>
+                    </div>
+                )}
+
+                {/* TAB_MIS_SOLICITUDES */}
+                {activeTab === 'mis-solicitudes' && (
+                    <div>
+                        {loadingSolicitudes ? (
+                            <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+                                <div className="spinner" style={{ margin: '0 auto', width: '32px', height: '32px', borderWidth: '3px' }} />
+                            </div>
+                        ) : misSolicitudes.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '4rem 0', color: '#94a3b8' }}>
+                                <ListChecks size={48} style={{ opacity: 0.2, margin: '0 auto 1rem' }} />
+                                <p style={{ fontWeight: 600 }}>No tienes solicitudes enviadas aún.</p>
+                                <p style={{ fontSize: '0.875rem', marginTop: '0.4rem' }}>Ve a la pestaña &quot;Adoptar&quot; y solicita una mascota.</p>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                                {misSolicitudes.map(sol => {
+                                    const status = sol.estado_solicitud ?? 'pendiente';
+                                    const sCfg: Record<string, {bg:string;color:string;label:string;icon:React.ReactNode}> = {
+                                        pendiente: { bg:'#fff7ed', color:'#ea580c', label:'Pendiente',  icon:<Clock size={14}/> },
+                                        aprobado:  { bg:'#f0fdf4', color:'#16a34a', label:'Aprobado',   icon:<CheckCircle size={14}/> },
+                                        rechazado: { bg:'#fef2f2', color:'#dc2626', label:'Rechazado',  icon:<AlertCircle size={14}/> },
+                                    };
+                                    const sc = sCfg[status] ?? sCfg.pendiente;
+                                    const foto = sol.animalito?.fotos?.[0]?.archivo;
+                                    return (
+                                        <div key={sol.id_solicitud ?? sol.id} className="card" style={{ padding: '1rem 1.25rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                            <div style={{ width:'52px', height:'52px', borderRadius:'12px', flexShrink:0, backgroundColor:'#f1f5f9', overflow:'hidden',
+                                                backgroundImage: foto ? `url(${getFullImageUrl(foto)})` : 'none', backgroundSize:'cover', backgroundPosition:'center',
+                                                display:'flex', alignItems:'center', justifyContent:'center' }}>
+                                                {!foto && <span style={{ fontSize:'1.5rem' }}>🐾</span>}
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontWeight:700, fontSize:'0.95rem', color:'var(--color-dark)', marginBottom:'0.2rem' }}>
+                                                    {sol.animalito?.nombre ?? `Mascota #${sol.id_animalito}`}
+                                                </div>
+                                                <div style={{ fontSize:'0.8rem', color:'#64748b' }}>
+                                                    {new Date(sol.fecha_creacion).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'})}
+                                                </div>
+                                            </div>
+                                            <span style={{ display:'inline-flex', alignItems:'center', gap:'0.3rem', backgroundColor:sc.bg, color:sc.color, padding:'0.3rem 0.75rem', borderRadius:'20px', fontSize:'0.78rem', fontWeight:700, whiteSpace:'nowrap' }}>
+                                                {sc.icon} {sc.label}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 )}
 

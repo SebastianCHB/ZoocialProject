@@ -12,53 +12,70 @@ class AnimalitoController extends Controller
     // GET_ALL_PETS_WITH_RELATIONS
     public function index()
     {
-        $pets = Animalito::with(['raza.especie', 'responsable', 'fotos'])->get();
+        // INCLUDE_FICHA - Cargar fichaSalud para el panel veterinario
+        $pets = Animalito::with(['raza.especie', 'responsable', 'fotos', 'fichaSalud'])->get();
         return response()->json($pets, 200);
     }
 
     // CREATE_NEW_PET
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'id_responsable' => 'nullable|integer|exists:responsables,id_responsable',
-            'id_raza'        => 'nullable|integer|exists:razas,id_raza',
-            'nombre'         => 'required|string|max:100',
-            'edad_estimado'  => 'nullable|string',
-            'genero'         => 'required|string',
-            'disponibilidad' => 'required|string',
-            'fecha_ingreso'  => 'nullable|date',
-            'image'          => 'nullable|image|max:2048'
+        // ACCEPT_PET_FORM_FIELDS - Acepta campos del form de Adoptions.tsx / VetView.tsx
+        $nombre         = $request->nombre;
+        $genero         = $request->genero ?? $request->sexo ?? 'macho';
+        $disponibilidad = $request->disponibilidad ?? $request->estado_adopcion ?? 'disponible';
+
+        // EDAD_ESTIMADO_FIX - La DB requiere edad_estimado NOT NULL
+        $edadEstimado = $request->edad_estimado ?? $request->edad_estimada ?? 'N/D';
+
+        if (!$nombre) {
+            return response()->json(['message' => 'El nombre es requerido'], 400);
+        }
+
+        // FK_SAFE - Buscar responsable/raza válidos, fallback al primero disponible
+        $idResponsable = $request->id_responsable
+            ?? \App\Models\Responsable::value('id_responsable')
+            ?? null;
+
+        $idRaza = $request->id_raza
+            ?? \App\Models\Raza::value('id_raza')
+            ?? null;
+
+        // FK_NULL_CHECK - Si no hay responsable ni raza en la DB, no se puede crear
+        if (!$idResponsable || !$idRaza) {
+            return response()->json([
+                'message' => 'No hay responsables o razas registrados en el sistema. Contacta al administrador.'
+            ], 422);
+        }
+
+        $pet = Animalito::create([
+            'id_responsable' => $idResponsable,
+            'id_raza'        => $idRaza,
+            'nombre'         => $nombre,
+            // EDAD_NOT_NULL - La columna edad_estimado es NOT NULL en la migración
+            'edad_estimado'  => (string) $edadEstimado,
+            'genero'         => $genero,
+            'disponibilidad' => $disponibilidad,
+            // FECHA_INGRESO_NOT_NULL - La columna fecha_ingreso es NOT NULL, se auto-asigna hoy
+            'fecha_ingreso'  => now()->toDateString(),
         ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 400);
-        }
 
-        $data = $request->all();
-        // ASSIGN_DEFAULT_IDS
-        if (empty($data['id_responsable'])) {
-            $data['id_responsable'] = \App\Models\Responsable::first()->id_responsable ?? 1;
-        }
-        if (empty($data['id_raza'])) {
-            $data['id_raza'] = \App\Models\Raza::first()->id_raza ?? 1;
-        }
-
-        $pet = Animalito::create($data);
-
-        if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('pets', 'public');
+        // STORE_RELATIVE_PATH - Acepta 'image' o 'imagenes[]' del form
+        $imageFile = $request->file('image') ?? ($request->file('imagenes')[0] ?? null);
+        if ($imageFile) {
+            $path = $imageFile->store('pets', 'public');
             \App\Models\Foto::create([
                 'id_animalito' => $pet->id_animalito,
                 'cantidad'     => 1,
                 'tipo'         => 'principal',
-                // url
-                'archivo'      => Storage::disk('public')->url($path)
+                'archivo'      => $path, // Relativo: "pets/abc123.jpg"
             ]);
         }
 
         return response()->json([
             'message' => 'Mascota creada correctamente',
-            'data' => $pet
+            'data'    => $pet->load('fotos'),
         ], 201);
     }
 

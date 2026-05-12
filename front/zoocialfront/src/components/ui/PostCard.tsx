@@ -81,20 +81,37 @@ export const PostCard = ({
 
     return (
         <div className="card" style={{ padding: '1.25rem', borderRadius: '18px', border: '1px solid #f0f0f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-            {/* Header matches mobile */}
+            {/* Header del post */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                 <div 
                     style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}
                     onClick={() => onUserClick(post.usuario)}
                 >
-                    <div style={{ 
-                        width: '38px', height: '38px', borderRadius: '50%', 
-                        backgroundColor: getAvatarColor(authorName), 
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                        color: 'white', fontWeight: 'bold', fontSize: '0.9rem' 
-                    }}>
-                        {authorName.substring(0, 2).toUpperCase()}
-                    </div>
+                    {/* AUTHOR_AVATAR_IMG - Mostrar foto de perfil del autor si existe, sino inicial con color */}
+                    {getFullImageUrl(post.usuario?.imagen_perfil) ? (
+                        <img
+                            src={getFullImageUrl(post.usuario?.imagen_perfil)}
+                            alt={authorName}
+                            style={{
+                                width: '38px', height: '38px', borderRadius: '50%',
+                                objectFit: 'cover', flexShrink: 0,
+                                border: `2px solid ${getAvatarColor(authorName)}`
+                            }}
+                            onError={(e) => {
+                                // AVATAR_FALLBACK - Si la imagen falla, ocultar y CSS muestra el fondo
+                                (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                        />
+                    ) : (
+                        <div style={{ 
+                            width: '38px', height: '38px', borderRadius: '50%', 
+                            backgroundColor: getAvatarColor(authorName), 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                            color: 'white', fontWeight: 'bold', fontSize: '0.9rem' 
+                        }}>
+                            {authorName.substring(0, 2).toUpperCase()}
+                        </div>
+                    )}
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#333', textTransform: 'capitalize' }}>
                             {authorName}

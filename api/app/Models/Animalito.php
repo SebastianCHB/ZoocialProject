@@ -9,8 +9,8 @@ class Animalito extends Model
     protected $table = 'animalitos';
     protected $primaryKey = 'id_animalito';
     protected $fillable = [
-        'id_responsable', 'id_raza', 'nombre', 'edad_estimado', 
-        'genero', 'disponibilidad', 'fecha_ingreso'
+        'id_responsable', 'id_raza', 'nombre', 'edad_estimado',
+        'genero', 'disponibilidad', 'fecha_ingreso'  // FECHA_INGRESO_FILLABLE - NOT NULL en DB
     ];
 
     public function raza()

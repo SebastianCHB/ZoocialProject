@@ -26,11 +26,21 @@ const categoryColors: Record<string, string> = {
 const PayPalCheckout = ({ product, onSuccess, onCancel }: { product: any; onSuccess: () => void; onCancel: () => void }) => {
     const [{ isPending }] = usePayPalScriptReducer();
     const [error, setError] = useState('');
+    // PAYPAL_ERROR_HANDLER - Detectar si PayPal no carga en tiempo razonable
+    const [loadTimeout, setLoadTimeout] = useState(false);
+
+    // Si después de 8 segundos sigue pendiente, asumir que está bloqueado
+    useState(() => {
+        const timer = setTimeout(() => {
+            if (isPending) setLoadTimeout(true);
+        }, 8000);
+        return () => clearTimeout(timer);
+    });
 
     const handleApprove = async (_data: any, actions: any) => {
         try {
             const details = await actions.order.capture();
-            // Record payment in backend
+            // Registrar pago en el backend
             try {
                 await api.post('/payments/record', {
                     paypal_order_id: details.id,
@@ -46,6 +56,22 @@ const PayPalCheckout = ({ product, onSuccess, onCancel }: { product: any; onSucc
             setError('El pago fue cancelado o no se procesó correctamente.');
         }
     };
+
+    // PAYPAL_FALLBACK_UI - Si PayPal no carga, mostrar instrucción al usuario
+    if (loadTimeout) {
+        return (
+            <div style={{ textAlign: 'center', padding: '1.5rem', backgroundColor: '#fff7ed', borderRadius: '12px', border: '1px solid #fed7aa' }}>
+                <p style={{ color: '#c2410c', fontWeight: 700, marginBottom: '0.5rem' }}>⚠️ PayPal no pudo cargar</p>
+                <p style={{ color: '#9a3412', fontSize: '0.85rem', lineHeight: 1.5 }}>
+                    Puede que tu navegador esté bloqueando el script de PayPal.<br />
+                    Intenta deshabilitar bloqueadores de anuncios o abre en modo incógnito.
+                </p>
+                <button onClick={onCancel} style={{ marginTop: '1rem', padding: '0.5rem 1.5rem', borderRadius: '8px', background: '#f97316', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                    Cerrar
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div>
@@ -63,21 +89,26 @@ const PayPalCheckout = ({ product, onSuccess, onCancel }: { product: any; onSucc
                 <div className="paypal-container">
                     <PayPalButtons
                         style={{ layout: 'vertical', color: 'gold', shape: 'pill', label: 'pay' }}
+                        // PAYPAL_ORDER_V2 - Estructura correcta para PayPal Orders API v2
                         createOrder={(_data, actions) => {
                             return actions.order.create({
                                 intent: 'CAPTURE',
                                 purchase_units: [{
                                     amount: {
                                         currency_code: 'USD',
-                                        value: (product.price / 17).toFixed(2), // MXN → USD approx
+                                        value: (product.price / 17).toFixed(2), // MXN → USD aprox
                                     },
                                     description: product.name,
                                 }],
                             });
                         }}
                         onApprove={handleApprove}
-                        onError={() => setError('Ocurrió un error con PayPal. Intenta de nuevo.')}
+                        onError={(err) => {
+                            console.error('PayPal error:', err);
+                            setError('Ocurrió un error con PayPal. Intenta de nuevo.');
+                        }}
                         onCancel={onCancel}
+                        onInit={() => setLoadTimeout(false)} // SDK cargó correctamente
                     />
                 </div>
             )}

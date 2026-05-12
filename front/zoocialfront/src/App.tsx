@@ -2,6 +2,8 @@ import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'reac
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 import { Dashboard } from './pages/Dashboard';
 import { Onboarding } from './pages/Onboarding';
 import { UsersManager } from './pages/UsersManager';
@@ -13,8 +15,8 @@ import { Chat } from './pages/Chat';
 import { Store } from './pages/Store';
 import { Profile } from './pages/Profile';
 import { AdminHome } from './pages/AdminHome';
+import { VetView } from './pages/VetView';
 import { BottomNav } from './components/ui/BottomNav';
-
 import type { ReactNode } from 'react';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: ReactNode, allowedRoles?: string[] }) => {
@@ -67,15 +69,14 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
 
 const PublicRoute = ({ children }: { children: ReactNode }) => {
     const { isAuthenticated, user, loading } = useAuth();
-    
     if (loading) return null;
-    
     if (isAuthenticated && user) {
         if (user.nombre_completo === 'Nuevo Usuario') return <Navigate to="/onboarding" replace />;
         if (user.rol === 'admin') return <Navigate to="/admin-home" replace />;
+        // VET_REDIRECT - Veterinarios van a su vista al hacer login
+        if (user.rol === 'veterinario') return <Navigate to="/vet-view" replace />;
         return <Navigate to="/feed" replace />;
     }
-    
     return <>{children}</>;
 };
 
@@ -97,6 +98,9 @@ function App() {
                                 <Register />
                             </PublicRoute>
                         } />
+                        {/* AUTH_EMAIL_ROUTES - Sin PublicRoute para no redirigir a usuarios ya logueados */}
+                        <Route path="/forgot-password" element={<ForgotPassword />} />
+                        <Route path="/reset-password"  element={<ResetPassword />} />
 
                         {/* Onboarding */}
                         <Route path="/onboarding" element={
@@ -160,6 +164,12 @@ function App() {
                         <Route path="/store" element={
                             <ProtectedRoute allowedRoles={['normal', 'rescatista', 'veterinario']}>
                                 <Store />
+                            </ProtectedRoute>
+                        } />
+                        {/* VET_VIEW_ROUTE - Vista exclusiva para veterinarios */}
+                        <Route path="/vet-view" element={
+                            <ProtectedRoute allowedRoles={['veterinario', 'admin']}>
+                                <VetView />
                             </ProtectedRoute>
                         } />
 

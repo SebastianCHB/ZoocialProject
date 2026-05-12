@@ -1,22 +1,36 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-    LayoutDashboard, Users, Home, Heart, ShoppingBag, MessageCircle, Settings, Menu, X, ClipboardList, PawPrint, LogOut
+    LayoutDashboard, Users, Home, Heart, ShoppingBag, MessageCircle, Settings, Menu, X, ClipboardList, PawPrint, LogOut, Stethoscope, MapPin
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
+import { getFullImageUrl } from '../../utils/imageUrl';
+
+// ROLE_BADGE_CONFIG - Color del badge por tipo de usuario
+const ROLE_BADGE: Record<string, { bg: string; color: string; label: string }> = {
+    admin:       { bg: '#dc2626', color: '#fff', label: 'Admin' },
+    veterinario: { bg: '#16a34a', color: '#fff', label: 'Veterinario' },
+    rescatista:  { bg: '#ea580c', color: '#fff', label: 'Rescatista' },
+    normal:      { bg: '#0056B8', color: '#fff', label: 'Usuario' },
+};
 
 export const Sidebar = () => {
     const { user, logout } = useAuth();
     const isAdmin = user?.rol === 'admin';
+    const isVet = user?.rol === 'veterinario';
     const [isOpen, setIsOpen] = useState(false);
     const location = useLocation();
+    const roleBadge = ROLE_BADGE[user?.rol ?? 'normal'] ?? ROLE_BADGE.normal;
 
-    // Close sidebar on route change (mobile)
+    // SIDEBAR_AVATAR_IMG - Resolver URL completa del avatar para AlwaysData
+    const avatarUrl = user?.imagen_perfil ? getFullImageUrl(user.imagen_perfil) : undefined;
+
+    // Cerrar sidebar al cambiar de ruta (móvil)
     useEffect(() => {
         setIsOpen(false);
     }, [location.pathname]);
 
-    // Prevent body scroll when sidebar is open on mobile
+    // Bloquear scroll del body cuando el sidebar está abierto en móvil
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
@@ -31,18 +45,17 @@ export const Sidebar = () => {
 
     return (
         <>
-            {/* Mobile hamburger button - rendered inside TopNav via CSS */}
+            {/* HAMBURGER_BTN - display controlado por CSS (.hamburger-btn), NO hardcoded */}
             <button
                 id="sidebar-hamburger"
                 onClick={() => setIsOpen(true)}
                 className="hamburger-btn"
                 aria-label="Abrir menú"
-                style={{ display: 'none' }} // controlled by CSS media query
             >
                 <Menu size={20} />
             </button>
 
-            {/* Overlay (mobile) */}
+            {/* Overlay oscuro (móvil) */}
             {isOpen && (
                 <div
                     className="sidebar-overlay"
@@ -52,7 +65,7 @@ export const Sidebar = () => {
             )}
 
             <aside className={`sidebar ${isOpen ? 'mobile-open' : ''}`}>
-                {/* Logo + Close button */}
+                {/* Logo + botón cerrar */}
                 <div className="sidebar-logo" style={{ justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <img src="/zoocialLogo.png" alt="Zoocial" style={{ height: '30px' }} />
@@ -67,7 +80,7 @@ export const Sidebar = () => {
                     <button
                         onClick={() => setIsOpen(false)}
                         style={{
-                            display: 'none', // shown via JS/media query
+                            display: 'none',
                             width: '28px', height: '28px', borderRadius: '8px',
                             backgroundColor: '#f1f5f9', color: '#64748b',
                             alignItems: 'center', justifyContent: 'center'
@@ -79,10 +92,10 @@ export const Sidebar = () => {
                     </button>
                 </div>
 
-                {/* Navigation */}
+                {/* Navegación principal */}
                 <div className="sidebar-section-label">MENÚ</div>
                 <nav className="sidebar-menu">
-                    {isAdmin ? (
+                {isAdmin ? (
                         <>
                             <NavLink to="/dashboard" className={menuItemClass}>
                                 <LayoutDashboard size={18} /> Resumen General
@@ -99,8 +112,28 @@ export const Sidebar = () => {
                             <NavLink to="/adoptions-admin" className={menuItemClass}>
                                 <ClipboardList size={18} /> Procesos de Adopción
                             </NavLink>
+                            <NavLink to="/vet-view" className={menuItemClass}>
+                                <Stethoscope size={18} /> Vista Veterinario
+                            </NavLink>
+                        </>
+                    ) : isVet ? (
+                        /* VET_MENU - Menú especializado para veterinarios */
+                        <>
+                            <NavLink to="/feed" className={menuItemClass}>
+                                <Home size={18} /> Inicio
+                            </NavLink>
+                            <NavLink to="/vet-view" className={menuItemClass}>
+                                <Stethoscope size={18} /> Panel Veterinario
+                            </NavLink>
+                            <NavLink to="/adoptions" className={menuItemClass}>
+                                <ClipboardList size={18} /> Adopciones
+                            </NavLink>
+                            <NavLink to="/adoptions" className={menuItemClass}>
+                                <MapPin size={18} /> Veterinarias Cercanas
+                            </NavLink>
                         </>
                     ) : (
+                        /* USER_MENU - Menú para usuarios normales y rescatistas */
                         <>
                             <NavLink to="/feed" className={menuItemClass}>
                                 <Home size={18} /> Inicio
@@ -131,11 +164,24 @@ export const Sidebar = () => {
                     </NavLink>
                 </nav>
 
-                {/* User footer */}
+                {/* Footer del usuario */}
                 <div className="sidebar-footer">
                     <div className="sidebar-user">
-                        <div className="sidebar-avatar">
-                            {user?.nombre_completo?.charAt(0).toUpperCase() || 'U'}
+                        {/* SIDEBAR_AVATAR_IMG - Foto real si existe, sino inicial con color */}
+                        <div className="sidebar-avatar" style={{ overflow: 'hidden', padding: 0 }}>
+                            {avatarUrl ? (
+                                <img
+                                    src={avatarUrl}
+                                    alt={user?.nombre_completo || 'Avatar'}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                                    onError={(e) => {
+                                        // AVATAR_FALLBACK - Imagen rota → ocultar y mostrar fondo de CSS
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
+                                />
+                            ) : (
+                                user?.nombre_completo?.charAt(0).toUpperCase() || 'U'
+                            )}
                         </div>
                         <div style={{ overflow: 'hidden' }}>
                             <div style={{
@@ -145,8 +191,15 @@ export const Sidebar = () => {
                             }}>
                                 {user?.nombre_completo || 'Usuario'}
                             </div>
-                            <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'capitalize' }}>
-                                {user?.rol || 'Normal'}
+                    <div style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <span style={{
+                                    display: 'inline-block', padding: '0.1rem 0.5rem',
+                                    borderRadius: '6px', fontSize: '0.68rem', fontWeight: 700,
+                                    letterSpacing: '0.04em', textTransform: 'capitalize',
+                                    backgroundColor: roleBadge.bg, color: roleBadge.color,
+                                }}>
+                                    {roleBadge.label}
+                                </span>
                             </div>
                         </div>
                     </div>

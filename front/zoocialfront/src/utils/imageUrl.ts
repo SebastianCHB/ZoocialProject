@@ -1,55 +1,56 @@
 /**
  * Resolves any stored image path to an absolute URL.
  *
- * In development: Vite proxies /storage/* → Laravel localhost, so we use /storage/...
- * In production (AlwaysData): files live at /api/public/storage/... so we prepend the full base.
+ * En desarrollo: Vite proxies /storage/* → Laravel localhost, so we use /storage/...
+ * En producción (AlwaysData): el root .htaccess reescribe /storage/* → laravel/public/storage/*
  *
- * Paths stored in DB can look like:
- *   - "storage/posts/abc.jpg"
- *   - "public/posts/abc.jpg"
- *   - "posts/abc.jpg"
- *   - "https://..."
+ * Paths almacenados en BD pueden ser:
+ *   - "posts/abc.jpg"           (nuevo formato - path relativo)
+ *   - "avatars/abc.jpg"         (nuevo formato - path relativo)
+ *   - "storage/posts/abc.jpg"   (formato legacy)
+ *   - "https://..."             (URL externa - pasa sin cambios)
+ *   - "data:..."                (base64 - pasa sin cambios)
  */
 
 const BASE = import.meta.env.VITE_API_URL?.replace('/api', '') ?? '';
-// In prod BASE = 'https://zooocial.alwaysdata.net'
-// Storage is symlinked at api/public/storage → api/storage/app/public
-const STORAGE_BASE = BASE ? `${BASE}/api/public/storage` : `/storage`;
+// STORAGE_URL_FIX - Usar /storage/* (root .htaccess lo reescribe a laravel/public/storage/*)
+// En dev, Vite proxies /storage → localhost:8000. En prod, .htaccess lo resuelve.
+const STORAGE_BASE = BASE ? `${BASE}/storage` : `/storage`;
 
 export function getFullImageUrl(url: string | null | undefined): string | undefined {
     if (!url || url === 'null' || url === 'undefined') return undefined;
 
     let path = url;
-    
-    // External URLs or base64 keep intact unless they specifically contain our storage paths
+
+    // Base64 y data URIs pasan sin cambios
     if (path.startsWith('data:')) return path;
-    
+
     if (path.startsWith('http')) {
-        // Look for common Laravel storage structures in the URL.
-        // Even if it's an absolute URL, we break it down to its relative path.
-        const storageMatch = path.match(/(?:\/storage\/|\/public\/|\/api\/public\/)(.*)$/);
+        // Para URLs absolutas, extraer el path relativo interno
+        const storageMatch = path.match(/(?:\/storage\/|\/public\/|\/api\/public\/|\/laravel\/public\/storage\/)(.*)$/);
         if (storageMatch && storageMatch[1]) {
-            path = storageMatch[1]; // Extract the inner path like "posts/123.jpg"
+            path = storageMatch[1]; // Extraer "posts/abc.jpg"
         } else if (!path.includes(BASE.replace('https://', '').replace('http://', ''))) {
-             // If it's truly an external URL (doesn't contain our domain at all), return it unchanged
-             return path;
+            // URL externa real (otro dominio) - devolver sin cambios
+            return path;
         } else {
-             // It's our domain but missing storage prefix, just extract the pathname
-             try {
-                 path = new URL(path).pathname;
-             } catch {
-                 // Ignore
-             }
+            // Misma app pero sin prefijo de storage conocido
+            try {
+                path = new URL(path).pathname;
+            } catch {
+                // ignorar error de parsing
+            }
         }
     }
 
-    // Normalize: strip leading slashes and any remaining prefixes just to be safe
+    // Normalizar: quitar slashes iniciales y prefijos conocidos
     path = path
         .replace(/^\/+/, '')
-        .replace(/^api\/public\//, '')
+        .replace(/^laravel\/public\/storage\//, '')
+        .replace(/^api\/public\/storage\//, '')
         .replace(/^storage\//, '')
         .replace(/^public\//, '');
 
-
+    // path ahora es relativo, e.g. "posts/abc.jpg" o "avatars/abc.jpg"
     return `${STORAGE_BASE}/${path}`;
 }

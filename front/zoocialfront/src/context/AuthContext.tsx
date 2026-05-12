@@ -10,6 +10,8 @@ export interface User {
     ciudad?: string;
     rol: 'normal' | 'rescatista' | 'veterinario' | 'admin';
     edad?: number;
+    // AVATAR_TYPE_FIX - Campo de foto de perfil; path relativo resuelto por getFullImageUrl()
+    imagen_perfil?: string;
     validaciones?: any[];
 }
 
